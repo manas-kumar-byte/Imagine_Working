@@ -1,0 +1,9 @@
+facility_id,medicine_id,date,quantity_dispensed
+fac_0002,med_amoxicillin,2026-08-20,18
+fac_0002,med_amoxicillin,2026-08-21,20
+fac_0002,med_amoxicillin,2026-08-22,25
+fac_0002,med_amoxicillin,2026-08-23,30
+fac_0002,med_amoxicillin,2026-08-24,28
+fac_0003,med_amoxicillin,2026-08-20,10
+fac_0003,med_amoxicillin,2026-08-21,12
+fac_0003,med_amoxicillin,2026-08-22,15

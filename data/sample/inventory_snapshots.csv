@@ -1,0 +1,6 @@
+facility_id,medicine_id,timestamp,stock_on_hand,reorder_point,max_capacity
+fac_0001,med_amoxicillin,2026-08-25,1200,300,3000
+fac_0002,med_amoxicillin,2026-08-25,80,100,500
+fac_0003,med_amoxicillin,2026-08-25,45,100,500
+fac_0004,med_amoxicillin,2026-08-25,900,300,3000
+fac_0005,med_amoxicillin,2026-08-25,60,100,500

@@ -1,0 +1,6 @@
+id,name,lat,lon,region_id,type,tier,population_served
+fac_0001,North District Hospital,12.90,74.80,reg_north,hospital,large,50000
+fac_0002,North Clinic A,12.95,74.85,reg_north,clinic,small,8000
+fac_0003,North Clinic B,12.88,74.75,reg_north,clinic,small,7000
+fac_0004,South District Hospital,12.70,74.90,reg_south,hospital,large,45000
+fac_0005,South Clinic A,12.72,74.92,reg_south,clinic,small,6000

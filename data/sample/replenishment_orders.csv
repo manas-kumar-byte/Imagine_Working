@@ -1,0 +1,3 @@
+id,facility_id,medicine_id,order_date,expected_delivery_date,actual_delivery_date,quantity,status
+ord_0001,fac_0002,med_amoxicillin,2026-08-15,2026-08-22,2026-08-26,300,delayed
+ord_0002,fac_0003,med_amoxicillin,2026-08-18,2026-08-25,,300,in_transit

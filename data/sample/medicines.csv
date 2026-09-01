@@ -1,0 +1,4 @@
+id,name,category,unit,essential_flag
+med_amoxicillin,Amoxicillin,antibiotic,tablets,true
+med_oral_rehydration,Oral Rehydration Salts,supportive_care,sachets,true
+med_paracetamol,Paracetamol,analgesic,tablets,true

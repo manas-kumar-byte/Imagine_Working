@@ -1,0 +1,7 @@
+/* Owner: Frontend/Product Lead — keep shared tokens here */
+:root {
+  --color-healthy: #2e7d32;
+  --color-watch: #f9a825;
+  --color-critical: #ef6c00;
+  --color-stockout: #c62828;
+}
