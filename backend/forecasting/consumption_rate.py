@@ -2,6 +2,7 @@
 Owner: Forecasting Engineer
 """
 from typing import TypedDict
+from backend.db import store
 
 
 class ConsumptionRateResult(TypedDict):

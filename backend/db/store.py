@@ -7,6 +7,8 @@ import pandas as pd
 from backend.config import SIMULATED_DIR, SAMPLE_DIR
 
 
+# Request to change return type of these functions to dataclasses
+
 def get_facilities() -> pd.DataFrame:
     raise NotImplementedError
 
@@ -16,11 +18,11 @@ def get_medicines() -> pd.DataFrame:
 def get_regions() -> pd.DataFrame:
     raise NotImplementedError
 
-def get_inventory_snapshots(facility_id: str = None, medicine_id: str = None) -> pd.DataFrame:
+def get_inventory_snapshots(facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
     raise NotImplementedError
 
-def get_consumption(facility_id: str = None, medicine_id: str = None, window_days: int = None) -> pd.DataFrame:
+def get_consumption(facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
     raise NotImplementedError
 
-def get_replenishment_orders(facility_id: str = None, medicine_id: str = None) -> pd.DataFrame:
+def get_replenishment_orders(facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
     raise NotImplementedError
