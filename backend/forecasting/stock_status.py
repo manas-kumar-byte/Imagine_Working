@@ -27,11 +27,14 @@ def classify_stock_status(facility_id: str, medicine_id: str) -> StockStatus:
     risk_score = 1 - (days_remaining / reorder_lead_time)
     risk_score = max(0, min(1, risk_score))
 
-    if risk_score < 0.25:
+    """
+    These values must be tuned
+    """
+    if risk_score < STATUS_THRESHOLDS["healthy"]:
         status = VALID_STATUSES[0]
-    elif (risk_score >= 0.25) & (risk_score < 0.5):
+    elif (risk_score >= STATUS_THRESHOLDS["healthy"]) & (risk_score < STATUS_THRESHOLDS["watch"]):
         status = VALID_STATUSES[1]
-    elif (risk_score >= 0.5) & (risk_score < 0.75):
+    elif (risk_score >= STATUS_THRESHOLDS["watch"]) & (risk_score < STATUS_THRESHOLDS["critical"]):
         status = VALID_STATUSES[2]
     else:
         status = VALID_STATUSES[3]

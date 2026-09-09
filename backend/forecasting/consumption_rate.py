@@ -3,6 +3,7 @@ Owner: Forecasting Engineer
 """
 from typing import TypedDict
 from backend.db import store
+from pandas import DataFrame
 
 
 class ConsumptionRateResult(TypedDict):
@@ -15,4 +16,11 @@ def compute_consumption_rate(facility_id: str, medicine_id: str, window_days: in
     """Reads ConsumptionRecords for the given window via backend.db.store,
     returns average daily use, trend, and volatility.
     """
-    raise NotImplementedError
+    consumption = store.get_consumption(facility_id=facility_id, medicine_id=medicine_id, window_days=window_days)
+
+    avg_daily_use = consumption["quantity_dispensed"].mean()
+    trend_pct = ((consumption["quantity_dispensed"].iloc[-1] / consumption["quantity_dispensed"].iloc[0]) - 1) * 100
+    # Volatility is simply standard deviation
+    volatility = consumption["quantity_dispensed"].std()
+
+    return ConsumptionRateResult(avg_daily_use=avg_daily_use, trend_pct=trend_pct, volatility=volatility)
