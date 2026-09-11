@@ -7,7 +7,6 @@ than a red dot with no reasoning. Keep this cheap and demo-able.
 """
 
 from backend.explainability import data_access as da
-from backend.models.facility import Facility 
 from backend.explainability.confidence import confidence_band
 
 #NOTE: I've created a separate data access file, for mock data and data call functions.
@@ -24,8 +23,6 @@ def explain_recommendation(recommendation: dict) -> str:
     if "action" in recommendation:
         return _explain_intervention(recommendation)
     return "Unable to explain: unrecognized recommendation shape."
-    raise NotImplementedError
-
 #functions to show the numbers in explain_recommendation are created below.
 
 
@@ -56,3 +53,9 @@ def explain_forecast(facility_id: str, medicine_id: str) -> str:
         f"{name} is likely to stock out in {forecast['low_estimate']:.0f}-"
         f"{forecast['high_estimate']:.0f} days ({band['level']} confidence, {band['note']})."
     )
+
+
+def _facility_name(facility_id: str) -> str:
+    """Returns the name of a facility by its ID."""
+    facility = da.get_facility(facility_id)
+    return facility.name if facility else facility_id

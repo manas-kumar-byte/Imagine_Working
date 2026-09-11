@@ -4,7 +4,6 @@ against, so treat changes here as breaking changes for Module G.
 Owner: Backend/Integration Lead
 """
 from pydantic import BaseModel
-from typing import List, Optional
 
 
 class FacilityStatusResponse(BaseModel):

@@ -5,7 +5,6 @@ from fastapi import APIRouter
 
 from backend.api.schemas import AlertResponse
 from backend.db.store import get_medicines
-
 from backend.regional.shortage_detection import detect_emerging_shortage
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])

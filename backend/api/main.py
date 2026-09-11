@@ -6,7 +6,7 @@ Run with: uvicorn backend.api.main:app --reload --port 8000
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import facilities, regions, alerts, recommendations
+from backend.api.routes import alerts, facilities, recommendations, regions
 
 app = FastAPI(title="Shortage Radar API")
 
