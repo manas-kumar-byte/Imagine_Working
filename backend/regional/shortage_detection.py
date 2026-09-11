@@ -17,8 +17,9 @@ class EmergingShortage(TypedDict):
     first_detected_at: str      # ISO 8601
 
 
-def detect_emerging_shortage(medicine_id: str) -> List[EmergingShortage]:
+def detect_emerging_shortage(medicine_id: str | None = None) -> List[EmergingShortage]:
     """Scans all regions for the given medicine and flags ones showing a
     rising, clustered risk pattern. Sorted by regional_risk_score descending.
     """
     raise NotImplementedError
+#In this make it medicine_id = None then it returns for all medicines

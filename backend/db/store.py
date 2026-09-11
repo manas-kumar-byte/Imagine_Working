@@ -9,7 +9,7 @@ from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
 
 
 ###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
-def get_facilities(choice: int) -> pd.DataFrame :
+def get_facilities(choice: int = 2) -> pd.DataFrame :
     match (choice):
         case 1:
             return pd.read_csv(RAW_DIR/"facility.csv")
@@ -21,7 +21,7 @@ def get_facilities(choice: int) -> pd.DataFrame :
             return pd.DataFrame({"choice":"invalid"})
 
 
-def get_medicines(choice: int) -> pd.DataFrame:
+def get_medicines(choice: int = 2) -> pd.DataFrame:
     match (choice):
         case 1:
             return pd.read_csv(RAW_DIR/"medicine.csv")
@@ -33,7 +33,7 @@ def get_medicines(choice: int) -> pd.DataFrame:
             return pd.DataFrame({"choice":"invalid"})
 
 
-def get_regions(choice: int) -> pd.DataFrame:
+def get_regions(choice: int = 2) -> pd.DataFrame:
     match (choice):
         case 1:
             return pd.read_csv("data/raw/region.csv")
@@ -45,7 +45,7 @@ def get_regions(choice: int) -> pd.DataFrame:
             return pd.DataFrame({"choice":"invalid"})
 
 
-def get_inventory_snapshots(choice: int, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
+def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
@@ -59,7 +59,7 @@ def get_inventory_snapshots(choice: int, facility_id: str | None = None, medicin
     ]
 
 
-def get_consumption(choice: int, facility_id: str | None = None, medicine_id: str | None = None, window_days: int = 7) -> pd.DataFrame:
+def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None, window_days: int = 7) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
@@ -83,7 +83,7 @@ def get_consumption(choice: int, facility_id: str | None = None, medicine_id: st
     ]
 
 
-def get_replenishment_orders(choice: int, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
+def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 

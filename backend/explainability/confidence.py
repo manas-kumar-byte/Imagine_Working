@@ -38,4 +38,3 @@ def confidence_band(forecast_result: dict) -> ConfidenceBand:
         note = f"wide uncertainty band ({low:.1f}-{high:.1f} days) — treat as directional only, based on {method}"
 
     return {"level": level, "note": note}
-    raise NotImplementedError
