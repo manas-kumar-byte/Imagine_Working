@@ -4,7 +4,6 @@ Owner: Backend/Integration Lead
 from fastapi import APIRouter
 
 from backend.api.schemas import RegionRiskResponse
-
 from backend.regional.region_risk import aggregate_region_risk
 
 router = APIRouter(prefix="/regions", tags=["regions"])

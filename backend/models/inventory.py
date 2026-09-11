@@ -1,5 +1,7 @@
 """InventorySnapshot entity — point-in-time stock level for one facility+medicine."""
+
 from dataclasses import dataclass
+
 
 # Possibly unite InventorySnapshot, ConsumptionRecord and Facility into one file? If not then just ignore
 @dataclass

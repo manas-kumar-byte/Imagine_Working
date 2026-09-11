@@ -1,6 +1,6 @@
 """Medicine entity."""
 from dataclasses import dataclass, field
-from typing import List
+
 
 @dataclass
 class Medicine:
@@ -9,4 +9,4 @@ class Medicine:
     category: str
     unit: str                # "tablets" | "vials" | etc.
     essential_flag: bool
-    substitute_ids: List[str] = field(default_factory=list)
+    substitute_ids: list[str] = field(default_factory=list)

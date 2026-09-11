@@ -3,14 +3,11 @@ Owner: Backend/Integration Lead
 """
 from fastapi import APIRouter
 
+from backend.api.schemas import FacilityStatusResponse
+from backend.db.store import get_facilities
+from backend.explainability.confidence import confidence_band
 from backend.forecasting.stock_status import classify_stock_status
 from backend.forecasting.stockout_forecast import forecast_days_to_stockout
-from backend.explainability.confidence import confidence_band
-
-from backend.db.store import get_facilities
-
-from backend.api.schemas import FacilityStatusResponse
-
 from backend.models.facility import Facility
 
 router = APIRouter(prefix="/facilities", tags=["facilities"])
