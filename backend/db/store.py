@@ -59,7 +59,7 @@ def get_inventory_snapshots(choice: int, facility_id: str | None = None, medicin
     ]
 
 
-def get_consumption(choice: int, facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
+def get_consumption(choice: int, facility_id: str | None = None, medicine_id: str | None = None, date: str | None = None) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
@@ -69,7 +69,8 @@ def get_consumption(choice: int, facility_id: str | None = None, medicine_id: st
 
     return consumption[
         (consumption["facility_id"] == facility_id) &
-        (consumption["medicine_id"] == medicine_id)
+        (consumption["medicine_id"] == medicine_id) &
+        (consumption["date"] == date)
     ]
 
 
