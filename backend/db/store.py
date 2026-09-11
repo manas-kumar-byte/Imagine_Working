@@ -4,15 +4,11 @@ pandas loading logic with subtly different assumptions.
 Owner: Backend/Integration Lead
 """
 import pandas as pd
-from dataclasses import dataclass
-from backend.config import SIMULATED_DIR, SAMPLE_DIR
-from backend.models import (
-    consumption, facility, inventory, medicine,
-    region, replenishment
-)
 
-# Request to change return type of these functions to dataclasses
+from backend.config import SAMPLE_DIR, SIMULATED_DIR
 
+
+###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
 def get_facilities(choice: int) -> pd.DataFrame :
     match (choice):
         case 1:
@@ -49,12 +45,43 @@ def get_regions(choice: int) -> pd.DataFrame:
             return pd.DataFrame({"choice":"invalid"})
 
 
-def get_inventory_snapshots(facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
-    raise NotImplementedError
+def get_inventory_snapshots(choice: int, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
+    files = ["raw","sample","simulated"]
 
-# This one does NOT need to be dataclass, let it remain dataframe
-def get_consumption(facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
-    raise NotImplementedError
+    if (choice in {1,2,3}): 
+        inventory = pd.read_csv("data"+files[choice-1]+"inventory.py")
+    else:
+        return pd.DataFrame({"choice":"invalid"})
 
-def get_replenishment_orders(facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
-    raise NotImplementedError
+    return inventory[
+        (inventory["facility_id"] == facility_id) &
+        (inventory["medicine_id"] == medicine_id)
+    ]
+
+
+def get_consumption(choice: int, facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
+    files = ["raw","sample","simulated"]
+
+    if (choice in {1,2,3}): 
+        consumption = pd.read_csv("data"+files[choice-1]+"consumption.py")
+    else:
+        return pd.DataFrame({"choice":"invalid"})
+
+    return consumption[
+        (consumption["facility_id"] == facility_id) &
+        (consumption["medicine_id"] == medicine_id)
+    ]
+
+
+def get_replenishment_orders(choice: int, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
+    files = ["raw","sample","simulated"]
+
+    if (choice in {1,2,3}): 
+        replenishment = pd.read_csv("data"+files[choice-1]+"replenishment.py")
+    else:
+        return pd.DataFrame({"choice":"invalid"})
+
+    return replenishment[
+        (replenishment["facility_id"] == facility_id) &
+        (replenishment["medicine_id"] == medicine_id)
+    ]
