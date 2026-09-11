@@ -5,18 +5,18 @@ Owner: Backend/Integration Lead
 """
 import pandas as pd
 
-from backend.config import SAMPLE_DIR, SIMULATED_DIR
+from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
 
 
 ###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
 def get_facilities(choice: int) -> pd.DataFrame :
     match (choice):
         case 1:
-            return pd.read_csv("data/raw/facility.csv")
+            return pd.read_csv(RAW_DIR/"facility.csv")
         case 2:
-            return pd.read_csv("data/sample/facility.csv")
+            return pd.read_csv(SAMPLE_DIR/"facility.csv")
         case 3:
-            return pd.read_csv("data/simulated/facility.csv")
+            return pd.read_csv(SIMULATED_DIR/"facility.csv")
         case _:
             return pd.DataFrame({"choice":"invalid"})
 
@@ -24,11 +24,11 @@ def get_facilities(choice: int) -> pd.DataFrame :
 def get_medicines(choice: int) -> pd.DataFrame:
     match (choice):
         case 1:
-            return pd.read_csv("data/raw/medicine.csv")
+            return pd.read_csv(RAW_DIR/"medicine.csv")
         case 2:
-            return pd.read_csv("data/sample/medicine.csv")
+            return pd.read_csv(SAMPLE_DIR/"medicine.csv")
         case 3:
-            return pd.read_csv("data/simulated/medicine.csv")
+            return pd.read_csv(SIMULATED_DIR/"medicine.csv")
         case _:
             return pd.DataFrame({"choice":"invalid"})
 
@@ -46,10 +46,10 @@ def get_regions(choice: int) -> pd.DataFrame:
 
 
 def get_inventory_snapshots(choice: int, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
-    files = ["raw","sample","simulated"]
+    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        inventory = pd.read_csv("data"+files[choice-1]+"inventory.py")
+        inventory = pd.read_csv(files[choice-1]/"inventory.py")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
@@ -60,10 +60,10 @@ def get_inventory_snapshots(choice: int, facility_id: str | None = None, medicin
 
 
 def get_consumption(choice: int, facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
-    files = ["raw","sample","simulated"]
+    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        consumption = pd.read_csv("data"+files[choice-1]+"consumption.py")
+        consumption = pd.read_csv(files[choice-1]/"consumption.py")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
@@ -74,10 +74,10 @@ def get_consumption(choice: int, facility_id: str | None = None, medicine_id: st
 
 
 def get_replenishment_orders(choice: int, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
-    files = ["raw","sample","simulated"]
+    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        replenishment = pd.read_csv("data"+files[choice-1]+"replenishment.py")
+        replenishment = pd.read_csv(files[choice-1]/"replenishment.py")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
