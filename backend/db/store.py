@@ -53,10 +53,17 @@ def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, med
     else:
         return pd.DataFrame({"choice":"invalid"})
 
-    return inventory[
-        (inventory["facility_id"] == facility_id) &
-        (inventory["medicine_id"] == medicine_id)
-    ]
+    if facility_id is not None:
+        inventory = inventory[
+            inventory["facility_id"] == facility_id
+        ]
+
+    if medicine_id is not None:
+        inventory = inventory[
+            inventory["medicine_id"] == medicine_id
+        ]
+
+    return inventory
 
 
 def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None, window_days: int = 7) -> pd.DataFrame:
