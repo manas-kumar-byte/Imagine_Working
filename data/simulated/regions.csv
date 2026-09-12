@@ -1,0 +1,4 @@
+id,name,parent_region_id
+reg_north,North,
+reg_south,South,
+reg_east,East,
