@@ -103,7 +103,7 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        replenishment = pd.read_csv(files[choice-1]/"replenishment.csv")
+        replenishment = pd.read_csv(files[choice-1]/"replenishment_orders.csv")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
