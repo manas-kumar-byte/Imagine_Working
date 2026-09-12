@@ -66,7 +66,7 @@ def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, med
     return inventory
 
 
-def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None, window_days: int = 7) -> pd.DataFrame:
+def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
@@ -76,18 +76,27 @@ def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id
 
     consumption["date"] = pd.to_datetime(consumption["date"])
 
-    today = pd.Timestamp.today().normalize()
-    start_date = today - pd.Timedelta(days=window_days - 1)
+    filtered = consumption
 
-    filtered = consumption[
-        (consumption["date"] >= start_date) &
-        (consumption["date"] <= today)
-    ]
+    if window_days is not None:
+        today = pd.Timestamp.today().normalize()
+        start_date = today - pd.Timedelta(days=window_days - 1)
+        filtered = consumption[
+            (consumption["date"] >= start_date) &
+            (consumption["date"] <= today)
+        ]
 
-    return filtered[
-        (filtered["facility_id"] == facility_id) &
-        (filtered["medicine_id"] == medicine_id)
-    ]
+    if facility_id is not None:
+        filtered = filtered[
+            filtered["facility_id"] == facility_id
+        ]
+
+    if medicine_id is not None:
+        filtered = filtered[
+            filtered["medicine_id"] == medicine_id
+        ]
+
+    return filtered
 
 
 def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
@@ -98,7 +107,10 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
     else:
         return pd.DataFrame({"choice":"invalid"})
 
-    return replenishment[
-        (replenishment["facility_id"] == facility_id) &
-        (replenishment["medicine_id"] == medicine_id)
-    ]
+    if facility_id is not None:
+        replenishment = replenishment[replenishment["facility_id"] == facility_id]
+
+    if medicine_id is not None:
+        replenishment = replenishment[replenishment["medicine_id"] == medicine_id]
+
+    return replenishment
