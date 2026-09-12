@@ -2,7 +2,7 @@
 Owner: Forecasting Engineer
 """
 from typing import TypedDict
-from forecasting import consumption_rate
+from backend.forecasting import consumption_rate
 from backend.db import store
 
 

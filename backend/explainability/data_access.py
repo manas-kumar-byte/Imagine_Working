@@ -15,11 +15,18 @@ need to change — they only call the function names below.
 """
 import math
 from typing import List, Optional
-
+"""
 from backend.models import (
     Facility, InventorySnapshot, StockoutForecast, StockStatus,
     RegionRisk, PropagationScore,
 )
+"""
+from backend.models.facility import Facility
+from backend.models.inventory import InventorySnapshot
+from backend.forecasting.stockout_forecast import StockoutForecast
+from backend.forecasting.stock_status import StockStatus
+from backend.regional.region_risk import RegionRisk
+from backend.regional.propagation_score import PropagationScore
 
 # ---------------------------------------------------------------------------
 # MOCK DATASET (hand-written, ~Day 1 sample per Section 6 of the design doc)
