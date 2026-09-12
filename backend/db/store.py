@@ -7,6 +7,9 @@ import pandas as pd  #type: ignore
 
 from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
 
+### Note: There is no way to get stockouts and regional data
+#         (I need that to even start regional)
+#                       - Polo Venat
 
 ###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
 def get_facilities(choice: int = 2) -> pd.DataFrame :

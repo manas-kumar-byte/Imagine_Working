@@ -1,1 +1,1 @@
-region_id	distributor_id	medicine_id	num_stockouts
+region_id,distributor_id,medicine_id,num_stockouts,num_watch,num_watch,num_healthy
