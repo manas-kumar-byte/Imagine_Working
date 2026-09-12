@@ -30,7 +30,7 @@ def get_medicines(choice: int = 2) -> pd.DataFrame:
         case 3:
             return pd.read_csv(SIMULATED_DIR/"medicines.csv")
         case _:
-            return pd.DataFrame({"choice":"invalid"})
+            raise ValueError("Input must be 1 2 or 3")
 
 
 def get_regions(choice: int = 2) -> pd.DataFrame:
@@ -42,7 +42,7 @@ def get_regions(choice: int = 2) -> pd.DataFrame:
         case 3:
             return pd.read_csv("data/simulated/region.csv")
         case _:
-            return pd.DataFrame({"choice":"invalid"})
+            raise ValueError("Input must be 1 2 or 3")
 
 
 def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
@@ -51,7 +51,7 @@ def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, med
     if (choice in {1,2,3}): 
         inventory = pd.read_csv(files[choice-1]/"inventory_snapshots.csv")
     else:
-        return pd.DataFrame({"choice":"invalid"})
+        raise ValueError("Input must be 1 2 or 3")
 
     if facility_id is not None:
         inventory = inventory[
@@ -72,7 +72,7 @@ def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id
     if (choice in {1,2,3}): 
         consumption = pd.read_csv(files[choice-1]/"consumption.csv")
     else:
-        return pd.DataFrame({"choice":"invalid"})
+        raise ValueError("Input must be 1 2 or 3")
 
     consumption["date"] = pd.to_datetime(consumption["date"])
 
@@ -105,7 +105,7 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
     if (choice in {1,2,3}): 
         replenishment = pd.read_csv(files[choice-1]/"replenishment_orders.csv")
     else:
-        return pd.DataFrame({"choice":"invalid"})
+        raise ValueError("Input must be 1 2 or 3")
 
     if facility_id is not None:
         replenishment = replenishment[replenishment["facility_id"] == facility_id]
