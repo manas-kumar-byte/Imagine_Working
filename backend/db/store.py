@@ -12,11 +12,11 @@ from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
 def get_facilities(choice: int = 2) -> pd.DataFrame :
     match (choice):
         case 1:
-            return pd.read_csv(RAW_DIR/"facility.csv")
+            return pd.read_csv(RAW_DIR/"facilities.csv")
         case 2:
-            return pd.read_csv(SAMPLE_DIR/"facility.csv")
+            return pd.read_csv(SAMPLE_DIR/"facilities.csv")
         case 3:
-            return pd.read_csv(SIMULATED_DIR/"facility.csv")
+            return pd.read_csv(SIMULATED_DIR/"facilities.csv")
         case _:
             return pd.DataFrame({"choice":"invalid"})
 
@@ -24,11 +24,11 @@ def get_facilities(choice: int = 2) -> pd.DataFrame :
 def get_medicines(choice: int = 2) -> pd.DataFrame:
     match (choice):
         case 1:
-            return pd.read_csv(RAW_DIR/"medicine.csv")
+            return pd.read_csv(RAW_DIR/"medicines.csv")
         case 2:
-            return pd.read_csv(SAMPLE_DIR/"medicine.csv")
+            return pd.read_csv(SAMPLE_DIR/"medicines.csv")
         case 3:
-            return pd.read_csv(SIMULATED_DIR/"medicine.csv")
+            return pd.read_csv(SIMULATED_DIR/"medicines.csv")
         case _:
             return pd.DataFrame({"choice":"invalid"})
 
@@ -49,7 +49,7 @@ def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, med
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        inventory = pd.read_csv(files[choice-1]/"inventory.csv")
+        inventory = pd.read_csv(files[choice-1]/"inventory_snapshots.csv")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
