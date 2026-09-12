@@ -9,15 +9,15 @@ SIMULATED_DIR = DATA_DIR / "simulated"
 SAMPLE_DIR = DATA_DIR / "sample"
 RAW_DIR = DATA_DIR / "raw"
 
-FORECAST_DIR = Path(__file__).resolve().parent.parent / "forecasting"
+FORECAST_DIR = Path(__file__).resolve().parent / "forecasting"
 
-API_DIR = Path(__file__).resolve().parent.parent / "api"
+API_DIR = Path(__file__).resolve().parent / "api"
 
-EXPLAINABILITY_DIR = Path(__file__).resolve().parent.parent / "explainability"
+EXPLAINABILITY_DIR = Path(__file__).resolve().parent / "explainability"
 
-MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
+MODELS_DIR = Path(__file__).resolve().parent / "models"
 
-DB_DIR = Path(__file__).resolve().parent.parent / "db"
+DB_DIR = Path(__file__).resolve().parent / "db"
 
 # Stock status thresholds (risk_score is always float 0.0-1.0)
 STATUS_THRESHOLDS = {

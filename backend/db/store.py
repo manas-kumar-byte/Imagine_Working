@@ -37,11 +37,11 @@ def get_medicines(choice: int = 2) -> pd.DataFrame:
 def get_regions(choice: int = 2) -> pd.DataFrame:
     match (choice):
         case 1:
-            return pd.read_csv("data/raw/region.csv")
+            return pd.read_csv("data/raw/regions.csv")
         case 2:
-            return pd.read_csv("data/sample/region.csv")
+            return pd.read_csv("data/sample/regions.csv")
         case 3:
-            return pd.read_csv("data/simulated/region.csv")
+            return pd.read_csv("data/simulated/regions.csv")
         case _:
             raise ValueError("Input must be 1 2 or 3")
 
@@ -80,11 +80,11 @@ def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id
     filtered = consumption
 
     if window_days is not None:
-        today = pd.Timestamp.today().normalize()
-        start_date = today - pd.Timedelta(days=window_days - 1)
+        latest = consumption["date"].max()
+        start_date = latest - pd.Timedelta(days=window_days - 1)
         filtered = consumption[
             (consumption["date"] >= start_date) &
-            (consumption["date"] <= today)
+            (consumption["date"] <= latest)
         ]
 
     if facility_id is not None:
