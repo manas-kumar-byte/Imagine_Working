@@ -49,7 +49,7 @@ def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, med
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        inventory = pd.read_csv(files[choice-1]/"inventory.py")
+        inventory = pd.read_csv(files[choice-1]/"inventory.csv")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
@@ -63,7 +63,7 @@ def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        consumption = pd.read_csv(files[choice-1]/"consumption.py")
+        consumption = pd.read_csv(files[choice-1]/"consumption.csv")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
@@ -87,7 +87,7 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
     if (choice in {1,2,3}): 
-        replenishment = pd.read_csv(files[choice-1]/"replenishment.py")
+        replenishment = pd.read_csv(files[choice-1]/"replenishment.csv")
     else:
         return pd.DataFrame({"choice":"invalid"})
 
