@@ -12,6 +12,7 @@ from datetime import date, timedelta
 
 from backend.data_sim.generate_facilities import generate_facilities
 from backend.data_sim.generate_medicines import generate_medicines
+from backend.data_sim.generate_regions import generate_regions
 from backend.data_sim.simulate_consumption import simulate_consumption
 from backend.data_sim.simulate_replenishment import simulate_replenishment
 from backend.models.inventory import InventorySnapshot
@@ -53,6 +54,12 @@ DEFAULT_LEAD_TIME_DIST = {
     "delay_prob": 0.10,
 }
 
+# reorder_point = avg_daily_use * (lead-time mean + this many days of safety
+# stock). max_capacity is reorder_point scaled up so there's real headroom
+# above the trigger threshold for surplus-finding (Module D) to find.
+SAFETY_BUFFER_DAYS = 5
+MAX_CAPACITY_MULTIPLIER_RANGE = (2.5, 4.0)
+
 
 def _base_pattern_params(facility, rng: random.Random) -> dict:
     """Default consumption pattern for a facility/medicine pair — modest
@@ -68,13 +75,19 @@ def _base_pattern_params(facility, rng: random.Random) -> dict:
     }
 
 
-def _compute_inventory_snapshots(facility_id, medicine_id, consumption, orders, initial_stock):
+def _compute_inventory_snapshots(
+    facility_id, medicine_id, consumption, orders, initial_stock,
+    reorder_point, max_capacity,
+):
     """Run a simple day-by-day stock balance: subtract consumption, add
-    delivered order quantities on their actual delivery date.
+    delivered order quantities on their actual delivery date, cap at
+    max_capacity so deliveries can't overshoot storage.
 
-    NOTE: InventorySnapshot is really Person 4's model — this is a stopgap
-    so inventory_snapshots.csv exists for the rest of the pipeline to build
-    against. Confirm field names with Person 4 before final merge.
+    Fields match backend/models/inventory.py's frozen InventorySnapshot
+    contract exactly (facility_id, medicine_id, timestamp, stock_on_hand,
+    reorder_point, max_capacity) — Module B reads stock_on_hand directly,
+    and Module D's surplus_finder reads reorder_point/max_capacity to
+    decide who has spare stock to redistribute.
     """
     deliveries_by_date = {}
     for order in orders:
@@ -84,28 +97,22 @@ def _compute_inventory_snapshots(facility_id, medicine_id, consumption, orders, 
             )
 
     snapshots = []
-    stock = initial_stock
-    trailing_use = []  # last 7 days of quantity_dispensed, for days_of_supply
+    stock = min(initial_stock, max_capacity)
 
     for record in consumption:
         stock += deliveries_by_date.get(record.date, 0.0)
+        stock = min(stock, max_capacity)  # storage can't exceed capacity
         stock -= record.quantity_dispensed
         stock = max(0.0, stock)
-
-        trailing_use.append(record.quantity_dispensed)
-        if len(trailing_use) > 7:
-            trailing_use.pop(0)
-        avg_use = sum(trailing_use) / len(trailing_use)
-        days_of_supply = round(stock / avg_use, 2) if avg_use > 0 else None
 
         snapshots.append(
             InventorySnapshot(
                 facility_id=facility_id,
                 medicine_id=medicine_id,
-                date=record.date,
+                timestamp=record.date,
                 stock_on_hand=round(stock, 2),
-                days_of_supply=days_of_supply,
-                stockout=stock <= 0,
+                reorder_point=round(reorder_point, 2),
+                max_capacity=round(max_capacity, 2),
             )
         )
 
@@ -128,10 +135,11 @@ def main() -> None:
     rng = random.Random(SEED)
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    print("[1/4] Generating facilities and medicines...")
+    print("[1/4] Generating regions, facilities, and medicines...")
+    regions = generate_regions(REGION_CONFIG)
     facilities = generate_facilities(N_FACILITIES, REGION_CONFIG, seed=SEED)
     medicines = generate_medicines(ESSENTIAL_MEDICINES)
-    print(f"  {len(facilities)} facilities, {len(medicines)} medicines")
+    print(f"  {len(regions)} regions, {len(facilities)} facilities, {len(medicines)} medicines")
 
     # ------------------------------------------------------------------
     # Pick pairs for the 3 explicit demo scenarios up front, so the bulk
@@ -212,13 +220,19 @@ def main() -> None:
             )
             orders = simulate_replenishment(
                 facility.id, medicine.id, SIM_DAYS, lead_time_dist,
+                avg_daily_use=pattern_params["base_daily_use"],
                 start_date=date.today() - timedelta(days=SIM_DAYS),
                 seed=pair_seed + 1,
             )
 
-            initial_stock = pattern_params["base_daily_use"] * 14  # ~2 weeks buffer
+            avg_daily_use = pattern_params["base_daily_use"]
+            reorder_point = avg_daily_use * (lead_time_dist["mean_days"] + SAFETY_BUFFER_DAYS)
+            max_capacity = reorder_point * pair_rng.uniform(*MAX_CAPACITY_MULTIPLIER_RANGE)
+            initial_stock = avg_daily_use * 14  # ~2 weeks buffer to start from
+
             snapshots = _compute_inventory_snapshots(
-                facility.id, medicine.id, consumption, orders, initial_stock
+                facility.id, medicine.id, consumption, orders, initial_stock,
+                reorder_point, max_capacity,
             )
 
             all_consumption.extend(consumption)
@@ -229,6 +243,7 @@ def main() -> None:
           f"{len(all_snapshots)} snapshots")
 
     print(f"[4/4] Writing CSVs to {OUT_DIR}/ ...")
+    _write_csv(os.path.join(OUT_DIR, "regions.csv"), regions)
     _write_csv(os.path.join(OUT_DIR, "facilities.csv"), facilities)
     _write_csv(os.path.join(OUT_DIR, "medicines.csv"), medicines)
     _write_csv(os.path.join(OUT_DIR, "inventory_snapshots.csv"), all_snapshots)

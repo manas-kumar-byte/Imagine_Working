@@ -1,15 +1,32 @@
-"""Facility entity — see docs/design-doc.md section 3 for the frozen schema."""
-from dataclasses import dataclass
+"""Facility model.
+Owner: Data/Simulation Lead (Person 1)
+
+Field shapes are frozen per the team contract — do not rename or retype
+without sign-off, since Modules B/C/D read these fields directly.
+"""
+from dataclasses import dataclass, asdict
 
 
-# Possibly unite InventorySnapshot, ConsumptionRecord and Facility into one file? If not then just ignore
+VALID_TYPES = ("hospital", "clinic", "pharmacy", "warehouse")
+VALID_TIERS = ("small", "medium", "large")
+
+
 @dataclass
 class Facility:
-    id: str                # e.g. "fac_0012"
+    id: str
     name: str
     lat: float
     lon: float
     region_id: str
-    type: str               # "hospital" | "clinic" | "pharmacy" | "warehouse"
-    tier: str               # capacity size, e.g. "small" | "medium" | "large"
+    type: str
+    tier: str
     population_served: int
+
+    def __post_init__(self) -> None:
+        if self.type not in VALID_TYPES:
+            raise ValueError(f"Invalid facility type: {self.type!r}")
+        if self.tier not in VALID_TIERS:
+            raise ValueError(f"Invalid facility tier: {self.tier!r}")
+
+    def to_dict(self) -> dict:
+        return asdict(self)

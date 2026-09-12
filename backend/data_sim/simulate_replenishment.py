@@ -34,6 +34,7 @@ def simulate_replenishment(
     lead_time_dist: dict,
     reorder_cycle_days: int = _DEFAULT_REORDER_CYCLE_DAYS,
     order_qty_range: tuple = _DEFAULT_ORDER_QTY_RANGE,
+    avg_daily_use: float = None,
     start_date: date = None,
     as_of_day: int = None,
     seed: int = None,
@@ -46,9 +47,18 @@ def simulate_replenishment(
     This is the lever for the "supply-side delay" demo scenario.
 
     Orders are placed on a fixed reorder cycle (reorder_cycle_days apart)
-    over the `days` window — one facility/medicine pair reorders roughly
-    every reorder_cycle_days, which is a simplification since actual
-    consumption isn't wired into this function's signature.
+    over the `days` window.
+
+    avg_daily_use: if provided, order quantity is sized to roughly cover one
+    reorder cycle of consumption (avg_daily_use * reorder_cycle_days, +/-20%)
+    instead of the flat order_qty_range fallback. This matters: a flat
+    random quantity independent of how much the facility actually consumes
+    means demand-growth trends and shocks in simulate_consumption() never
+    show up as a real stock squeeze, because oversized restocks paper over
+    them. Pass the same base_daily_use used to build pattern_params here so
+    a facility's supply is sized to its own historical demand rather than
+    to any mid-window growth spike — that's what lets a shortage scenario
+    actually surface in stock_on_hand instead of being masked by resupply.
 
     Returns:
         List[ReplenishmentOrder]
@@ -94,7 +104,11 @@ def simulate_replenishment(
             status = "in_transit" if expected_delivery_day <= as_of_day else "pending"
 
         order_id = f"ord_{facility_id}_{medicine_id}_{order_idx:04d}"
-        quantity = float(rng.randint(*order_qty_range))
+        if avg_daily_use is not None and avg_daily_use > 0:
+            target_qty = avg_daily_use * reorder_cycle_days
+            quantity = round(target_qty * rng.uniform(0.8, 1.2), 1)
+        else:
+            quantity = float(rng.randint(*order_qty_range))
 
         orders.append(
             ReplenishmentOrder(

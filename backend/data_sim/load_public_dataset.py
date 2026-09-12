@@ -59,12 +59,10 @@ def _normalize_snapshots(raw: List[dict]) -> List[InventorySnapshot]:
         InventorySnapshot(
             facility_id=r["facility_id"],
             medicine_id=r["medicine_id"],
-            date=r["date"],
+            timestamp=r["timestamp"],
             stock_on_hand=float(r["stock_on_hand"]),
-            days_of_supply=(
-                float(r["days_of_supply"]) if r.get("days_of_supply") is not None else None
-            ),
-            stockout=bool(r.get("stockout", False)),
+            reorder_point=float(r["reorder_point"]),
+            max_capacity=float(r["max_capacity"]),
         )
         for r in raw
     ]
