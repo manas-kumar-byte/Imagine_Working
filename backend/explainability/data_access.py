@@ -1,26 +1,7 @@
-"""
-Data access + integration seams for Modules D & E.
 
-WIRING NOTE (read this first):
-Everything in the "STUBS TO REPLACE" section below has the *exact* signature
-the real Module A (data) and Module B/C (forecasting/regional) will expose,
-per the team contract. Once teammates land their code, swap these stub
-bodies for real imports, e.g.:
-
-    from backend.forecasting.engine import forecast_days_to_stockout, classify_stock_status
-    from backend.forecasting.regional import aggregate_region_risk, shortage_propagation_score
-
-Nothing in surplus_finder.py / redistribution.py / intervention.py should
-need to change — they only call the function names below.
-"""
 import math
 from typing import List, Optional
-"""
-from backend.models import (
-    Facility, InventorySnapshot, StockoutForecast, StockStatus,
-    RegionRisk, PropagationScore,
-)
-"""
+import pandas as pd
 from backend.models.facility import Facility
 from backend.models.inventory import InventorySnapshot
 from backend.forecasting.stockout_forecast import StockoutForecast
@@ -28,32 +9,18 @@ from backend.forecasting.stock_status import StockStatus
 from backend.regional.region_risk import RegionRisk
 from backend.regional.propagation_score import PropagationScore
 
+
+from backend.db.store import (
+    get_facilities as _get_facilities_df,
+    get_medicines as _get_medicines_df,
+    get_inventory_snapshots as _get_inventory_df,
+)
 # ---------------------------------------------------------------------------
 # MOCK DATASET (hand-written, ~Day 1 sample per Section 6 of the design doc)
 # Swap for backend.data.loader once Module A is producing real data.
 # ---------------------------------------------------------------------------
 
-_FACILITIES = [
-    Facility("fac_0001", "Udupi District Hospital", 13.3409, 74.7421, "reg_udupi", "hospital", "large", 250000),
-    Facility("fac_0002", "Manipal Clinic", 13.3525, 74.7869, "reg_udupi", "clinic", "small", 40000),
-    Facility("fac_0003", "Kundapura PHC", 13.6230, 74.6890, "reg_udupi", "clinic", "small", 60000),
-    Facility("fac_0004", "Mangalore Central Warehouse", 12.9141, 74.8560, "reg_mangalore", "warehouse", "large", 0),
-    Facility("fac_0005", "Karkala Pharmacy", 13.2010, 74.9930, "reg_udupi", "pharmacy", "small", 15000),
-]
-
-_INVENTORY = [
-    InventorySnapshot("fac_0001", "med_amoxicillin", "2026-09-08", 40, 200, 1000),
-    InventorySnapshot("fac_0002", "med_amoxicillin", "2026-09-08", 30, 60, 300),
-    InventorySnapshot("fac_0003", "med_amoxicillin", "2026-09-08", 500, 150, 800),
-    InventorySnapshot("fac_0004", "med_amoxicillin", "2026-09-08", 5000, 500, 20000),
-    InventorySnapshot("fac_0005", "med_amoxicillin", "2026-09-08", 20, 40, 200),
-]
-
-_MEDICINE_META = {
-    # category used by feasibility scoring (cold-chain etc.)
-    "med_amoxicillin": {"category": "antibiotic", "cold_chain": False, "min_shipment": 10},
-    "med_insulin": {"category": "hormone", "cold_chain": True, "min_shipment": 5},
-}
+DATA_CHOICE = 2
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -65,45 +32,96 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def _row_to_facility(row: "pd.Series") -> Facility:
+    return Facility(
+        id=str(row["id"]),
+        name=str(row["name"]),
+        lat=float(row["lat"]),
+        lon=float(row["lon"]),
+        region_id=str(row["region_id"]),
+        type=str(row["type"]),
+        tier=str(row["tier"]),
+        population_served=int(row["population_served"]),
+    )
+
+
+def _row_to_inventory(row: "pd.Series") -> InventorySnapshot:
+    return InventorySnapshot(
+        facility_id=str(row["facility_id"]),
+        medicine_id=str(row["medicine_id"]),
+        timestamp=str(row["timestamp"]),
+        stock_on_hand=float(row["stock_on_hand"]),
+        reorder_point=float(row["reorder_point"]),
+        max_capacity=float(row["max_capacity"]),
+    )
+
+
 def get_facility(facility_id: str) -> Optional[Facility]:
-    return next((f for f in _FACILITIES if f.id == facility_id), None)
+    df = _get_facilities_df(DATA_CHOICE)
+    matches = df[df["id"] == facility_id]
+    if matches.empty:
+        return None
+    return _row_to_facility(matches.iloc[0])
 
 
 def get_facilities_in_region(region_id: str) -> List[Facility]:
-    return [f for f in _FACILITIES if f.region_id == region_id]
+    df = _get_facilities_df(DATA_CHOICE)
+    matches = df[df["region_id"] == region_id]
+    return [_row_to_facility(row) for _, row in matches.iterrows()]
 
 
 def get_facilities_within_radius(lat: float, lon: float, radius_km: float,
                                   exclude_facility_id: Optional[str] = None) -> List[Facility]:
+    df = _get_facilities_df(DATA_CHOICE)
     out = []
-    for f in _FACILITIES:
-        if f.id == exclude_facility_id:
+    for _, row in df.iterrows():
+        if exclude_facility_id and str(row["id"]) == exclude_facility_id:
             continue
-        if haversine_km(lat, lon, f.lat, f.lon) <= radius_km:
-            out.append(f)
+        if haversine_km(lat, lon, float(row["lat"]), float(row["lon"])) <= radius_km:
+            out.append(_row_to_facility(row))
     return out
 
 
 def get_inventory_snapshot(facility_id: str, medicine_id: str) -> Optional[InventorySnapshot]:
-    matches = [s for s in _INVENTORY if s.facility_id == facility_id and s.medicine_id == medicine_id]
-    return matches[-1] if matches else None  # latest by insertion order in mock data
+    df = _get_inventory_df(DATA_CHOICE, facility_id=facility_id, medicine_id=medicine_id)
+    if df.empty:
+        return None
+    if "timestamp" in df.columns:
+        df = df.sort_values("timestamp")
+    return _row_to_inventory(df.iloc[-1])
 
 
 def get_medicine_meta(medicine_id: str) -> dict:
-    return _MEDICINE_META.get(medicine_id, {"category": "unknown", "cold_chain": False, "min_shipment": 1})
+    """
+    cold_chain / min_shipment aren't part of the frozen Medicine schema
+    (design-doc section 3 only defines id/name/category/unit/essential_flag/
+    substitute_ids) — I added them for feasibility scoring in
+    redistribution.py. Falls back to safe defaults if the real medicine
+    dataset doesn't have these columns; raise with Owner 1/4 if you'd rather
+    add them to the real schema than infer here.
+    """
+    df = _get_medicines_df(DATA_CHOICE)
+    matches = df[df["id"] == medicine_id]
+    if matches.empty:
+        return {"category": "unknown", "cold_chain": False, "min_shipment": 1.0}
+    row = matches.iloc[0]
+    return {
+        "category": str(row["category"]) if "category" in df.columns else "unknown",
+        "cold_chain": bool(row["cold_chain"]) if "cold_chain" in df.columns else False,
+        "min_shipment": float(row["min_shipment"]) if "min_shipment" in df.columns else 1.0,
+    }
 
 
 # ---------------------------------------------------------------------------
 # STUBS TO REPLACE — Module B (Person 2) and Module C (Person 2/3)
-# Signatures match Section 4 exactly. Mock logic below is only good enough
-# to make Modules D/E runnable/demoable in isolation.
+# Same placeholder logic as before; only the facility/inventory lookups now
+# hit real (CSV-backed) data via backend.db.store instead of an in-memory list.
 # ---------------------------------------------------------------------------
 
 def forecast_days_to_stockout(facility_id: str, medicine_id: str) -> StockoutForecast:
     snap = get_inventory_snapshot(facility_id, medicine_id)
     if not snap:
         return {"days_remaining": 999.0, "low_estimate": 999.0, "high_estimate": 999.0, "method": "no_data"}
-    # crude placeholder: assume ~10 units/day burn until Module B lands
     assumed_daily_use = max(snap.reorder_point / 20.0, 1.0)
     days = max(snap.stock_on_hand / assumed_daily_use, 0.0)
     return {
