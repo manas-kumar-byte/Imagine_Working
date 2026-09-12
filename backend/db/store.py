@@ -18,7 +18,8 @@ def get_facilities(choice: int = 2) -> pd.DataFrame :
         case 3:
             return pd.read_csv(SIMULATED_DIR/"facilities.csv")
         case _:
-            return pd.DataFrame({"choice":"invalid"})
+            raise ValueError("Input must be 1 2 or 3")
+            
 
 
 def get_medicines(choice: int = 2) -> pd.DataFrame:
