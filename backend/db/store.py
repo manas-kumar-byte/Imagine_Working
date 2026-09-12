@@ -77,7 +77,7 @@ def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id
     consumption["date"] = pd.to_datetime(consumption["date"])
 
     filtered = consumption
-    
+
     if window_days is not None:
         today = pd.Timestamp.today().normalize()
         start_date = today - pd.Timedelta(days=window_days - 1)
@@ -107,7 +107,10 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
     else:
         return pd.DataFrame({"choice":"invalid"})
 
-    return replenishment[
-        (replenishment["facility_id"] == facility_id) &
-        (replenishment["medicine_id"] == medicine_id)
-    ]
+    if facility_id is not None:
+        replenishment = replenishment[replenishment["facility_id"] == facility_id]
+
+    if medicine_id is not None:
+        replenishment = replenishment[replenishment["medicine_id"] == medicine_id]
+
+    return replenishment
