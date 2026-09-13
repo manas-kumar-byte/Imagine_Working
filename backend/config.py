@@ -9,6 +9,8 @@ SIMULATED_DIR = DATA_DIR / "simulated"
 SAMPLE_DIR = DATA_DIR / "sample"
 RAW_DIR = DATA_DIR / "raw"
 
+DIR_CHOICE = 2
+
 FORECAST_DIR = Path(__file__).resolve().parent / "forecasting"
 
 API_DIR = Path(__file__).resolve().parent / "api"

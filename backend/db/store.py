@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd  # type: ignore
 
-from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
+from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR, DIR_CHOICE
 
 
 class MissingDataError(Exception):
@@ -38,15 +38,15 @@ def _read_csv(choice: int, filename: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def get_facilities(choice: int = 2) -> pd.DataFrame:
+def get_facilities(choice: int = DIR_CHOICE) -> pd.DataFrame:
     return _read_csv(choice, "facilities.csv")
 
 
-def get_medicines(choice: int = 2) -> pd.DataFrame:
+def get_medicines(choice: int = DIR_CHOICE) -> pd.DataFrame:
     return _read_csv(choice, "medicines.csv")
 
 
-def get_regions(choice: int = 2) -> pd.DataFrame:
+def get_regions(choice: int = DIR_CHOICE) -> pd.DataFrame:
     """
     Load regions.
 
@@ -94,7 +94,7 @@ def get_regions(choice: int = 2) -> pd.DataFrame:
 
 
 def get_inventory_snapshots(
-    choice: int = 2,
+    choice: int = DIR_CHOICE,
     facility_id: str | None = None,
     medicine_id: str | None = None,
 ) -> pd.DataFrame:
@@ -115,7 +115,7 @@ def get_inventory_snapshots(
 
 
 def get_consumption(
-    choice: int = 2,
+    choice: int = DIR_CHOICE,
     facility_id: str | None = None,
     medicine_id: str | None = None,
     window_days: int | None = None,
@@ -164,7 +164,7 @@ def get_consumption(
 
 
 def get_replenishment_orders(
-    choice: int = 2,
+    choice: int = DIR_CHOICE,
     facility_id: str | None = None,
     medicine_id: str | None = None,
 ) -> pd.DataFrame:
@@ -193,7 +193,7 @@ def get_stockout_details(choice: int = 2) -> pd.DataFrame:
 
 def set_stockout_details(
     stockout_details: dict,
-    choice: int = 2,
+    choice: int = DIR_CHOICE,
 ) -> None:
     """
     Update an existing stockout record or append a new one.
