@@ -4,7 +4,7 @@ Owner: Forecasting Engineer (or shared with Recommendation Engineer)
 from typing import TypedDict
 from backend.config import VALID_TRENDS, VALID_STATUSES
 from backend.db import store
-from forecasting.stock_status import classify_stock_status
+from backend.forecasting.stock_status import classify_stock_status
 
 
 class RegionRisk(TypedDict):
