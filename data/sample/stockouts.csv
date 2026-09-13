@@ -1,1 +1,1 @@
-region_id,distributor_id,medicine_id,num_stockouts,num_watch,num_watch,num_healthy,risk_score
+region_id,distributor_id,medicine_id,num_stockouts,num_critical,num_watch,num_healthy,risk_score
