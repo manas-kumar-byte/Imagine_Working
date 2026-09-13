@@ -24,10 +24,6 @@ pandas loading logic with subtly different assumptions.
 Owner: Backend/Integration Lead
 """
 
-import pandas as pd  # type: ignore
-
-from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
-
 
 ###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3
 
