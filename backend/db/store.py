@@ -3,8 +3,6 @@ tables. Every module (B-E) reads through this so nobody hand-rolls their own
 pandas loading logic with subtly different assumptions.
 Owner: Backend/Integration Lead
 """
-from typing import TypedDict
-
 import pandas as pd  #type: ignore
 
 from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
