@@ -1,6 +1,9 @@
 import MapView from "../components/MapView"
 import AlertsFeed from "../components/AlertsFeed"
 import RecommendationPanel from "../components/RecommendationPanel"
+import {getFacilities} from "../api/client";
+const facilities = await(getFacilities());
+console.log(facilities);
 
 // Top-level dashboard: MapView + AlertsFeed + RecommendationPanel.
 // Owner: Frontend/Product Lead
@@ -9,7 +12,7 @@ export default function Dashboard() {
     <div className="dashboard">
       {/* TODO: compose MapView, AlertsFeed, RecommendationPanel */}
       <h1 className="heading-text">Dashboard</h1>
-      <MapView/>
+      <MapView facilities={facilities}/>
       <div className="alert-n-recommendation">
           <AlertsFeed/>
           <RecommendationPanel/>

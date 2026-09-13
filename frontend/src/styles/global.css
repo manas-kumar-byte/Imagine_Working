@@ -27,7 +27,7 @@
   align-items: center;
   justify-content: center;
 	margin: 5%;
-	width: 80vw;
+	width: 100%;
 	height: 100vh;
   border-radius: 40px;
 }
@@ -59,3 +59,281 @@
   justify-content: space-around;
   width: 100vw;
 }
+.medical-city-map {
+  width: 100%;
+  display: block;
+  width: 100%;
+  max-height: 550px;
+  height: auto;
+}
+
+.district {
+  stroke: none;
+}
+
+.north-region {
+  fill: #e8f1e8;
+}
+
+.south-region {
+  fill: #f3ece5;
+}
+
+.east-region {
+  fill: #e8edf5;
+}
+
+.region-boundary {
+  fill: none;
+  stroke: #b8c2c7;
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+}
+
+.building-layer {
+  fill: #d8dee1;
+  opacity: 0.7;
+}
+
+.b-block {
+  opacity: 0.75;
+}
+
+.road-network {
+  fill: none;
+}
+
+.main-artery {
+  stroke: #ffffff;
+  stroke-width: 16;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.local-street {
+  stroke: #ffffff;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.facility-marker {
+  cursor: pointer;
+}
+
+.facility-glow {
+  opacity: 0.25;
+}
+
+.hospital-glow {
+  fill: #dc2626;
+}
+
+.clinic-glow {
+  fill: #2563eb;
+}
+
+.facility-hospital {
+  fill: #dc2626;
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.facility-clinic {
+  fill: #2563eb;
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.facility-label {
+  fill: #263238;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.facility-type-label {
+  fill: #607078;
+  font-size: 9px;
+}
+
+.facility-marker:hover .facility-hospital,
+.facility-marker:hover .facility-clinic {
+  stroke-width: 4;
+}
+
+.label-heading {
+  fill: #607078;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.compass {
+  opacity: 0.8;
+}
+
+.compass-direction {
+  fill: #455a64;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.map-legend {
+  opacity: 0.95;
+}
+
+.legend-background {
+  fill: rgba(255, 255, 255, 0.9);
+  stroke: #d5dde0;
+  stroke-width: 1;
+}
+
+.legend-text {
+  fill: #455a64;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+
+.map-visualization-wrapper {
+  width: 100%;
+  height: 650px;
+  overflow: hidden;
+  position: relative;
+  border-radius: 12px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+
+
+
+
+/* ============================================================
+   DISTRICTS
+   ============================================================ */
+
+.district {
+  stroke: #94a3b8;
+  stroke-width: 2;
+}
+
+.high-quarter {
+  fill: #eef2ff;
+}
+
+.iron-docks {
+  fill: #ecfeff;
+}
+
+.foundry-commons {
+  fill: #f8fafc;
+}
+
+
+/* ============================================================
+   RISK OVERLAYS
+   ============================================================ */
+
+.risk-overlay {
+  fill: #ef4444;
+  pointer-events: none;
+}
+
+
+/* ============================================================
+   BUILDINGS
+   ============================================================ */
+
+.building-layer .b-block {
+  fill: #cbd5e1;
+  opacity: 0.65;
+}
+
+
+/* ============================================================
+   ROADS
+   ============================================================ */
+
+.main-artery {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 13;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.local-street {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+
+/* ============================================================
+   RIVER
+   ============================================================ */
+
+.river-underlay {
+  fill: none;
+  stroke: #cbd5e1;
+  stroke-width: 34;
+  stroke-linecap: round;
+}
+
+.river-core {
+  fill: none;
+  stroke: #bae6fd;
+  stroke-width: 24;
+  stroke-linecap: round;
+}
+
+
+/* ============================================================
+   LABELS
+   ============================================================ */
+
+.label-heading {
+  font-size: 18px;
+  font-weight: 700;
+  fill: #475569;
+  letter-spacing: 2px;
+}
+
+
+/* ============================================================
+   FACILITIES
+   ============================================================ */
+
+.facility-layer {
+  pointer-events: none;
+}
+
+.facility-marker {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.facility-marker:hover {
+  opacity: 0.85;
+}
+
+.facility-label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: #1e293b;
+  pointer-events: none;
+}
+
+
+/* ============================================================
+   LEGEND
+   ============================================================ */
+
+.legend-text {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #334155;
+}
+
+
