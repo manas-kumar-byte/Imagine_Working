@@ -5,6 +5,7 @@ from typing import TypedDict
 from backend.config import VALID_STATUSES, STATUS_THRESHOLDS
 from backend.db import store
 from backend.forecasting import consumption_rate
+import pandas as pd
 
 
 class StockStatus(TypedDict):
@@ -20,7 +21,8 @@ def classify_stock_status(facility_id: str, medicine_id: str) -> StockStatus:
     """
     remaining_stock = store.get_inventory_snapshots(facility_id=facility_id, medicine_id=medicine_id).iloc[0]["stock_on_hand"]
     rate_of_consumption = consumption_rate.compute_consumption_rate(facility_id=facility_id, medicine_id=medicine_id, window_days=7)["avg_daily_use"]
-    reorder_lead_time = store.get_replenishment_orders(facility_id=facility_id, medicine_id=medicine_id)["expected_delivery_date"]
+    replenishment_order = pd.to_datetime(store.get_replenishment_orders(facility_id=facility_id, medicine_id=medicine_id).iloc[0]["expected_delivery_date"])
+    reorder_lead_time = (pd.to_datetime("today") - replenishment_order).dt.days
 
     days_remaining = remaining_stock / rate_of_consumption
 
