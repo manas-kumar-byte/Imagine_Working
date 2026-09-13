@@ -4,7 +4,7 @@ import {getFacilityStatus} from "../api/client";
 // Owner: Frontend/Product Lead
 export default function FacilityDetail({ facilityId, medicineId }) {
   return (
-    <div className="facility-detail">
+    <div className="facility-detail card">
       <p>
       {/* TODO: fetch getFacilityStatus, render chart + confidence band */
       getFacilityStatus(facilityId, medicineId)["status"]}

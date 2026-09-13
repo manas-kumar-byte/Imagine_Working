@@ -5,7 +5,7 @@
   --color-watch: #f9a825;
   --color-critical: #ef6c00;
   --color-stockout: #c62828;
-  background: linear-gradient(45deg, #000000, #070F2B);
+  background-color:#FFF9D2;
   display: flex;
   flex-flow: row;
   justify-content: center;
@@ -16,16 +16,19 @@
   width: 100%;
   display: flex;
   align-items: center;
-  flex-direction: column;
+  flex-flow: column;
+}
+.card{
+  background-color:#FFEBCC;
 }
 .map-view {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
 	margin: 5%;
-	background: linear-gradient(45deg, #2E4540, #233D4D);
 	width: 80vw;
 	height: 100vh;
-  background: linear-gradient(45deg, rgb(10, 38, 71), rgb(63, 59, 108));
   border-radius: 40px;
 }
 
@@ -33,7 +36,6 @@
   display: flex;
   justify-content: center;
   margin: 5%;
-  background: linear-gradient(45deg, rgb(10, 38, 71), rgb(63, 59, 108));
   width: 45%;
 	height: 100vh;
   border-radius: 20px;
@@ -42,14 +44,13 @@
   display: flex;
   justify-content: center;
   margin: 5%;
-  background: linear-gradient(45deg, rgb(10, 38, 71), rgb(63, 59, 108));
   width: 45%;
 	height: 100vh;
   border-radius: 20px;
 }
 .heading-text{
   font-family: Quicksand;
-  color: aliceblue;
+  color: black;
 }
 .alert-n-recommendation{
   display: flex;

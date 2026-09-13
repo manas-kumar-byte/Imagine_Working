@@ -2,7 +2,7 @@
 // Owner: Frontend/Product Lead
 export default function RecommendationPanel({ recommendations }) {
   return (
-    <div className="recommendation-panel">
+    <div className="recommendation-panel card">
       <h2 className="heading-text">Recommendation Panel</h2>
       {/* TODO: render ranked list with rationale text */}
     </div>
