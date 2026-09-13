@@ -24,7 +24,7 @@ from backend.regional.region_risk import RegionRisk
 # Swap for backend.data.loader once Module A is producing real data.
 # ---------------------------------------------------------------------------
 
-DATA_CHOICE = 2
+DATA_CHOICE = 3
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
