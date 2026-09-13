@@ -1,6 +1,7 @@
 // Thin wrapper around the backend API contract (see docs/api-contract.md).
 // Owner: Frontend/Product Lead
-const BASE_URL = "/api";
+// const BASE_URL = "/api";
+const BASE_URL = "http://localhost:8000";
 
 export async function getFacilities() {
   const res = await fetch(`${BASE_URL}/facilities`);

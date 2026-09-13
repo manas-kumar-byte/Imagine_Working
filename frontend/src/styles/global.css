@@ -1,7 +1,60 @@
 /* Owner: Frontend/Product Lead — keep shared tokens here */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300&display=swap');
 :root {
   --color-healthy: #2e7d32;
   --color-watch: #f9a825;
   --color-critical: #ef6c00;
   --color-stockout: #c62828;
+  background: linear-gradient(45deg, #000000, #070F2B);
+  display: flex;
+  flex-flow: row;
+  justify-content: center;
+}
+.dashboard{
+  
+  justify-self: center;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+.map-view {
+  display: flex;
+  justify-content: center;
+	margin: 5%;
+	background: linear-gradient(45deg, #2E4540, #233D4D);
+	width: 80vw;
+	height: 100vh;
+  background: linear-gradient(45deg, rgb(10, 38, 71), rgb(63, 59, 108));
+  border-radius: 40px;
+}
+
+.alerts-feed {
+  display: flex;
+  justify-content: center;
+  margin: 5%;
+  background: linear-gradient(45deg, rgb(10, 38, 71), rgb(63, 59, 108));
+  width: 45%;
+	height: 100vh;
+  border-radius: 20px;
+}
+.recommendation-panel {
+  display: flex;
+  justify-content: center;
+  margin: 5%;
+  background: linear-gradient(45deg, rgb(10, 38, 71), rgb(63, 59, 108));
+  width: 45%;
+	height: 100vh;
+  border-radius: 20px;
+}
+.heading-text{
+  font-family: Quicksand;
+  color: aliceblue;
+}
+.alert-n-recommendation{
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  justify-content: space-around;
+  width: 100vw;
 }

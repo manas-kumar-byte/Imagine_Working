@@ -4,6 +4,7 @@
 export default function MapView({ facilities, regionRisk }) {
   return (
     <div className="map-view">
+      <h2 className="heading-text">Map View</h2>
       {/* TODO: plug in a map lib (e.g. Leaflet/Mapbox) or a simple SVG scatter for the hackathon */}
     </div>
   );
