@@ -1,4 +1,4 @@
-id,name,parent_region_id
-reg_north,North,
-reg_south,South,
-reg_east,East,
+id,name,parent_region_id,risk_score
+reg_north,North,,
+reg_south,South,,
+reg_east,East,,

@@ -10,6 +10,9 @@ from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
 ### Note: There is no way to get stockouts and regional data
 #         (I need that to even start regional)
 #                       - Polo Venat
+# Also for all those functions that accept both facility id and medicine id,
+# please make them return a dataclass instead of dataframe
+# it makes acccessing data easier
 
 ###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
 def get_facilities(choice: int = 2) -> pd.DataFrame :
@@ -48,7 +51,9 @@ def get_regions(choice: int = 2) -> pd.DataFrame:
         case _:
             raise ValueError("Input must be 1 2 or 3")
 
-
+# Why would this return a dataframe when only one row will be returned?
+# It's the values of inventory for one medicine at one facility
+# Plz make it return a dataclass instead, it breaks my functions
 def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
@@ -118,3 +123,6 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
         replenishment = replenishment[replenishment["medicine_id"] == medicine_id]
 
     return replenishment
+
+# Polo Venat here again
+# I will be assuming that get_stockout_details() returns a 

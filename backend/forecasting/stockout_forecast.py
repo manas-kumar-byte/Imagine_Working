@@ -21,7 +21,7 @@ def forecast_days_to_stockout(facility_id: str, medicine_id: str) -> StockoutFor
     band = +/- volatility-scaled range); only reach for time-series models if
     time allows.
     """
-    current_stock = store.get_inventory_snapshots(facility_id=facility_id, medicine_id=medicine_id)["stock_on_hand"]
+    current_stock = store.get_inventory_snapshots(facility_id=facility_id, medicine_id=medicine_id).iloc[0]["stock_on_hand"]
 
     rate = consumption_rate.compute_consumption_rate(facility_id=facility_id, medicine_id=medicine_id, window_days=7)
 
