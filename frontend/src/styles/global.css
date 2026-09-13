@@ -20,6 +20,7 @@
 }
 .card{
   background-color:#FFEBCC;
+  border-radius: 20px;
 }
 .map-view {
   display: flex;
@@ -42,11 +43,16 @@
 }
 .recommendation-panel {
   display: flex;
-  justify-content: center;
+  flex-flow: column;
+  align-items: center;
   margin: 5%;
   width: 45%;
 	height: 100vh;
   border-radius: 20px;
+  overflow: scroll;
+}
+.recommendation-item{
+  background-color: #FFEBCC;
 }
 .heading-text{
   font-family: Quicksand;
