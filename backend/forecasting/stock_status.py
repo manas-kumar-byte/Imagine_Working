@@ -4,7 +4,7 @@ Owner: Forecasting Engineer
 
 from typing import TypedDict
 
-import pandas as pd  # type: ignore
+import pandas as pd  # type: ignore[import]
 
 from backend.config import STATUS_THRESHOLDS, VALID_STATUSES
 from backend.db import store
@@ -32,12 +32,11 @@ def classify_stock_status(
     )
 
     if inventory.empty:
-        return StockStatus(
-            status=VALID_STATUSES[3],
-            risk_score=1.0
-        )
+        return {
+            "status": VALID_STATUSES[3],
+            "risk_score": 1.0
+        }
 
-    inventory["timestamp"] = inventory["timestamp"].astype(str)
     inventory = inventory.sort_values("timestamp")
 
     remaining_stock = float(
@@ -50,13 +49,15 @@ def classify_stock_status(
         window_days=7
     )
 
-    rate_of_consumption = float(rate["avg_daily_use"])
+    rate_of_consumption = float(
+        rate["avg_daily_use"]
+    )
 
     if rate_of_consumption <= 0:
-        return StockStatus(
-            status=VALID_STATUSES[0],
-            risk_score=0.0
-        )
+        return {
+            "status": VALID_STATUSES[0],
+            "risk_score": 0.0
+        }
 
     days_remaining = remaining_stock / rate_of_consumption
 
@@ -68,6 +69,7 @@ def classify_stock_status(
     reorder_lead_time = 7.0
 
     if not replenishment.empty:
+
         replenishment["order_date"] = pd.to_datetime(
             replenishment["order_date"],
             errors="coerce"
@@ -79,23 +81,27 @@ def classify_stock_status(
         )
 
         valid_orders = replenishment.dropna(
-            subset=["order_date", "expected_delivery_date"]
-        ).copy()
+            subset=[
+                "order_date",
+                "expected_delivery_date"
+            ]
+        )
 
         if not valid_orders.empty:
+
             lead_times = (
                 valid_orders["expected_delivery_date"]
                 - valid_orders["order_date"]
             ).dt.days
 
-            valid_lead_times = lead_times[lead_times > 0]
+            lead_times = lead_times[lead_times > 0]
 
-            if not valid_lead_times.empty:
+            if not lead_times.empty:
                 reorder_lead_time = float(
-                    valid_lead_times.mean()
+                    lead_times.mean()
                 )
 
-    risk_score = 1 - (
+    risk_score = 1.0 - (
         days_remaining / reorder_lead_time
     )
 
@@ -104,29 +110,19 @@ def classify_stock_status(
         min(1.0, float(risk_score))
     )
 
-    """
-    These values must be tuned
-    """
-
     if risk_score < STATUS_THRESHOLDS["healthy"]:
         status = VALID_STATUSES[0]
 
-    elif (
-        risk_score >= STATUS_THRESHOLDS["healthy"]
-        and risk_score < STATUS_THRESHOLDS["watch"]
-    ):
+    elif risk_score < STATUS_THRESHOLDS["watch"]:
         status = VALID_STATUSES[1]
 
-    elif (
-        risk_score >= STATUS_THRESHOLDS["watch"]
-        and risk_score < STATUS_THRESHOLDS["critical"]
-    ):
+    elif risk_score < STATUS_THRESHOLDS["critical"]:
         status = VALID_STATUSES[2]
 
     else:
         status = VALID_STATUSES[3]
 
-    return StockStatus(
-        status=status,
-        risk_score=risk_score
-    )
+    return {
+        "status": status,
+        "risk_score": risk_score
+    }

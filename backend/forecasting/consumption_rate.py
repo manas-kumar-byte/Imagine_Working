@@ -30,30 +30,45 @@ def compute_consumption_rate(
     )
 
     if consumption.empty:
-        return ConsumptionRateResult(
-            avg_daily_use=0.0,
-            trend_pct=0.0,
-            volatility=0.0
-        )
+        return {
+            "avg_daily_use": 0.0,
+            "trend_pct": 0.0,
+            "volatility": 0.0
+        }
 
     consumption = consumption.sort_values("date")
 
-    quantities = consumption["quantity_dispensed"].astype(float)
+    quantities = consumption[
+        "quantity_dispensed"
+    ].astype(float)
 
-    avg_daily_use = float(quantities.mean())
+    avg_daily_use = float(
+        quantities.mean()
+    )
 
-    first_value = float(quantities.iloc[0])
-    last_value = float(quantities.iloc[-1])
+    first_value = float(
+        quantities.iloc[0]
+    )
+
+    last_value = float(
+        quantities.iloc[-1]
+    )
 
     if first_value == 0:
         trend_pct = 0.0
     else:
-        trend_pct = (last_value / first_value) - 1.0
+        trend_pct = (
+            last_value / first_value
+        ) - 1.0
 
-    volatility = float(quantities.std()) if len(quantities) > 1 else 0.0
-
-    return ConsumptionRateResult(
-        avg_daily_use=avg_daily_use,
-        trend_pct=float(trend_pct),
-        volatility=volatility
+    volatility = (
+        float(quantities.std())
+        if len(quantities) > 1
+        else 0.0
     )
+
+    return {
+        "avg_daily_use": avg_daily_use,
+        "trend_pct": float(trend_pct),
+        "volatility": volatility
+    }

@@ -42,12 +42,12 @@ def forecast_days_to_stockout(
     )
 
     if inventory.empty:
-        return StockoutForecast(
-            days_remaining=0.0,
-            low_estimate=0.0,
-            high_estimate=0.0,
-            method="no_data"
-        )
+        return {
+            "days_remaining": 0.0,
+            "low_estimate": 0.0,
+            "high_estimate": 0.0,
+            "method": "no_data"
+        }
 
     inventory = inventory.sort_values("timestamp")
 
@@ -66,42 +66,50 @@ def forecast_days_to_stockout(
     volatility = float(rate["volatility"])
 
     if avg_daily_use <= 0:
-        return StockoutForecast(
-            days_remaining=9999.0,
-            low_estimate=9999.0,
-            high_estimate=9999.0,
-            method="no_consumption"
-        )
+        return {
+            "days_remaining": 9999.0,
+            "low_estimate": 9999.0,
+            "high_estimate": 9999.0,
+            "method": "no_consumption"
+        }
 
-    adjusted_daily_use = avg_daily_use * (1 + trend)
+    adjusted_daily_use = avg_daily_use * (1.0 + trend)
 
     adjusted_daily_use = max(
         adjusted_daily_use,
         0.1
     )
 
+    # Critical value from t-table at 95% certainty, 2-tail and 6 DoF (7 values in window)
     k = 1.943
 
-    uncertainty = k * volatility
+    estimate_bound = k * volatility
 
-    low_daily_use = max(
-        adjusted_daily_use - uncertainty,
+    lower_daily_use = max(
+        adjusted_daily_use - estimate_bound,
         0.1
     )
 
-    high_daily_use = max(
-        adjusted_daily_use + uncertainty,
+    higher_daily_use = max(
+        adjusted_daily_use + estimate_bound,
         0.1
     )
 
-    days_remaining = current_stock / adjusted_daily_use
-
-    low_estimate = current_stock / high_daily_use
-    high_estimate = current_stock / low_daily_use
-
-    return StockoutForecast(
-        days_remaining=round(float(days_remaining), 2),
-        low_estimate=round(float(low_estimate), 2),
-        high_estimate=round(float(high_estimate), 2),
-        method="Confidence interval"
+    days_remaining = (
+        current_stock / adjusted_daily_use
     )
+
+    low_estimate = (
+        current_stock / lower_daily_use
+    )
+
+    high_estimate = (
+        current_stock / higher_daily_use
+    )
+
+    return {
+        "days_remaining": round(float(days_remaining), 2),
+        "low_estimate": round(float(low_estimate), 2),
+        "high_estimate": round(float(high_estimate), 2),
+        "method": "Confidence interval"
+    }

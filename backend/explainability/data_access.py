@@ -1,20 +1,24 @@
 
 import math
-from typing import List, Optional
-import pandas as pd
-from backend.models.facility import Facility
-from backend.models.inventory import InventorySnapshot
-from backend.forecasting.stockout_forecast import StockoutForecast
-from backend.forecasting.stock_status import StockStatus
-from backend.regional.region_risk import RegionRisk
-from backend.regional.propagation_score import PropagationScore
 
+import pandas as pd  # type: ignore
 
 from backend.db.store import (
     get_facilities as _get_facilities_df,
-    get_medicines as _get_medicines_df,
+)
+from backend.db.store import (
     get_inventory_snapshots as _get_inventory_df,
 )
+from backend.db.store import (
+    get_medicines as _get_medicines_df,
+)
+from backend.forecasting.stock_status import StockStatus
+from backend.forecasting.stockout_forecast import StockoutForecast
+from backend.models.facility import Facility
+from backend.models.inventory import InventorySnapshot
+from backend.regional.propagation_score import PropagationScore
+from backend.regional.region_risk import RegionRisk
+
 # ---------------------------------------------------------------------------
 # MOCK DATASET (hand-written, ~Day 1 sample per Section 6 of the design doc)
 # Swap for backend.data.loader once Module A is producing real data.
@@ -56,7 +60,7 @@ def _row_to_inventory(row: "pd.Series") -> InventorySnapshot:
     )
 
 
-def get_facility(facility_id: str) -> Optional[Facility]:
+def get_facility(facility_id: str) -> Facility | None:
     df = _get_facilities_df(DATA_CHOICE)
     matches = df[df["id"] == facility_id]
     if matches.empty:
@@ -64,14 +68,14 @@ def get_facility(facility_id: str) -> Optional[Facility]:
     return _row_to_facility(matches.iloc[0])
 
 
-def get_facilities_in_region(region_id: str) -> List[Facility]:
+def get_facilities_in_region(region_id: str) -> list[Facility]:
     df = _get_facilities_df(DATA_CHOICE)
     matches = df[df["region_id"] == region_id]
     return [_row_to_facility(row) for _, row in matches.iterrows()]
 
 
 def get_facilities_within_radius(lat: float, lon: float, radius_km: float,
-                                  exclude_facility_id: Optional[str] = None) -> List[Facility]:
+                                  exclude_facility_id: str | None = None) -> list[Facility]:
     df = _get_facilities_df(DATA_CHOICE)
     out = []
     for _, row in df.iterrows():
@@ -82,7 +86,7 @@ def get_facilities_within_radius(lat: float, lon: float, radius_km: float,
     return out
 
 
-def get_inventory_snapshot(facility_id: str, medicine_id: str) -> Optional[InventorySnapshot]:
+def get_inventory_snapshot(facility_id: str, medicine_id: str) -> InventorySnapshot | None:
     df = _get_inventory_df(DATA_CHOICE, facility_id=facility_id, medicine_id=medicine_id)
     if df.empty:
         return None
@@ -112,62 +116,59 @@ def get_medicine_meta(medicine_id: str) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# STUBS TO REPLACE — Module B (Person 2) and Module C (Person 2/3)
-# Same placeholder logic as before; only the facility/inventory lookups now
-# hit real (CSV-backed) data via backend.db.store instead of an in-memory list.
-# ---------------------------------------------------------------------------
-
-def forecast_days_to_stockout(facility_id: str, medicine_id: str) -> StockoutForecast:
-    snap = get_inventory_snapshot(facility_id, medicine_id)
-    if not snap:
-        return {"days_remaining": 999.0, "low_estimate": 999.0, "high_estimate": 999.0, "method": "no_data"}
-    assumed_daily_use = max(snap.reorder_point / 20.0, 1.0)
-    days = max(snap.stock_on_hand / assumed_daily_use, 0.0)
-    return {
-        "days_remaining": round(days, 1),
-        "low_estimate": round(days * 0.7, 1),
-        "high_estimate": round(days * 1.3, 1),
-        "method": "mock_linear_burn",
-    }
+from backend.forecasting.stock_status import (
+    classify_stock_status as _classify_stock_status,
+)
+from backend.forecasting.stockout_forecast import (
+    forecast_days_to_stockout as _forecast_days_to_stockout,
+)
+from backend.regional.propagation_score import (
+    shortage_propagation_score as _shortage_propagation_score,
+)
+from backend.regional.region_risk import (
+    aggregate_region_risk as _aggregate_region_risk,
+)
 
 
-def classify_stock_status(facility_id: str, medicine_id: str) -> StockStatus:
-    forecast = forecast_days_to_stockout(facility_id, medicine_id)
-    days = forecast["days_remaining"]
-    if days <= 0:
-        status, risk = "stockout", 1.0
-    elif days <= 5:
-        status, risk = "critical", 0.85
-    elif days <= 14:
-        status, risk = "watch", 0.5
-    else:
-        status, risk = "healthy", 0.15
-    return {"status": status, "risk_score": risk}
+def forecast_days_to_stockout(
+    facility_id: str,
+    medicine_id: str
+) -> StockoutForecast:
+
+    return _forecast_days_to_stockout(
+        facility_id=facility_id,
+        medicine_id=medicine_id
+    )
 
 
-def aggregate_region_risk(region_id: str, medicine_id: str) -> RegionRisk:
-    facilities = get_facilities_in_region(region_id)
-    if not facilities:
-        return {"facilities_at_risk": 0, "total_facilities": 0, "pct_at_risk": 0.0,
-                "regional_risk_score": 0.0, "trend_direction": "stable"}
-    statuses = [classify_stock_status(f.id, medicine_id) for f in facilities]
-    at_risk = sum(1 for s in statuses if s["status"] in ("critical", "stockout", "watch"))
-    avg_risk = sum(s["risk_score"] for s in statuses) / len(statuses)
-    return {
-        "facilities_at_risk": at_risk,
-        "total_facilities": len(facilities),
-        "pct_at_risk": round(at_risk / len(facilities), 2),
-        "regional_risk_score": round(avg_risk, 2),
-        "trend_direction": "rising" if avg_risk > 0.5 else "stable",
-    }
+def classify_stock_status(
+    facility_id: str,
+    medicine_id: str
+) -> StockStatus:
+
+    return _classify_stock_status(
+        facility_id=facility_id,
+        medicine_id=medicine_id
+    )
 
 
-def shortage_propagation_score(region_id: str, medicine_id: str) -> PropagationScore:
-    risk = aggregate_region_risk(region_id, medicine_id)
-    factors = []
-    if risk["pct_at_risk"] > 0.4:
-        factors.append("multiple facilities trending critical simultaneously")
-    if risk["trend_direction"] == "rising":
-        factors.append("regional risk score rising")
-    return {"score": risk["regional_risk_score"], "contributing_factors": factors}
+def aggregate_region_risk(
+    region_id: str,
+    medicine_id: str
+) -> RegionRisk:
+
+    return _aggregate_region_risk(
+        region_id=region_id,
+        medicine_id=medicine_id
+    )
+
+
+def shortage_propagation_score(
+    region_id: str,
+    medicine_id: str
+) -> PropagationScore:
+
+    return _shortage_propagation_score(
+        region_id=region_id,
+        medicine_id=medicine_id
+    )

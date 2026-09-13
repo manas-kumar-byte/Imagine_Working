@@ -8,7 +8,8 @@ server or frontend dev server.
 import csv
 import os
 import random
-from datetime import date, timedelta
+from dataclasses import asdict, is_dataclass
+from datetime import datetime, timedelta, timezone
 
 from backend.data_sim.generate_facilities import generate_facilities
 from backend.data_sim.generate_medicines import generate_medicines
@@ -76,34 +77,59 @@ def _base_pattern_params(facility, rng: random.Random) -> dict:
 
 
 def _compute_inventory_snapshots(
-    facility_id, medicine_id, consumption, orders, initial_stock,
-    reorder_point, max_capacity,
+    facility_id,
+    medicine_id,
+    consumption,
+    orders,
+    initial_stock
 ):
     """Run a simple day-by-day stock balance: subtract consumption, add
-    delivered order quantities on their actual delivery date, cap at
-    max_capacity so deliveries can't overshoot storage.
-
-    Fields match backend/models/inventory.py's frozen InventorySnapshot
-    contract exactly (facility_id, medicine_id, timestamp, stock_on_hand,
-    reorder_point, max_capacity) — Module B reads stock_on_hand directly,
-    and Module D's surplus_finder reads reorder_point/max_capacity to
-    decide who has spare stock to redistribute.
+    delivered order quantities on their actual delivery date.
     """
+
     deliveries_by_date = {}
+
     for order in orders:
+
         if order.actual_delivery_date:
-            deliveries_by_date[order.actual_delivery_date] = (
-                deliveries_by_date.get(order.actual_delivery_date, 0.0) + order.quantity
+
+            deliveries_by_date[
+                order.actual_delivery_date
+            ] = (
+                deliveries_by_date.get(
+                    order.actual_delivery_date,
+                    0.0
+                )
+                + order.quantity
             )
 
     snapshots = []
-    stock = min(initial_stock, max_capacity)
+
+    stock = float(initial_stock)
+
+    reorder_point = round(
+        initial_stock * 0.35,
+        2
+    )
+
+    max_capacity = round(
+        initial_stock * 2.0,
+        2
+    )
 
     for record in consumption:
-        stock += deliveries_by_date.get(record.date, 0.0)
-        stock = min(stock, max_capacity)  # storage can't exceed capacity
+
+        stock += deliveries_by_date.get(
+            record.date,
+            0.0
+        )
+
         stock -= record.quantity_dispensed
-        stock = max(0.0, stock)
+
+        stock = max(
+            0.0,
+            stock
+        )
 
         snapshots.append(
             InventorySnapshot(
@@ -111,53 +137,92 @@ def _compute_inventory_snapshots(
                 medicine_id=medicine_id,
                 timestamp=record.date,
                 stock_on_hand=round(stock, 2),
-                reorder_point=round(reorder_point, 2),
-                max_capacity=round(max_capacity, 2),
+                reorder_point=reorder_point,
+                max_capacity=max_capacity,
             )
         )
 
     return snapshots
 
+def _generate_regions(region_config):
+
+    return [
+        {
+            "id": region_id,
+            "name": region_id.replace(
+                "reg_", ""
+            ).replace("_", " ").title(),
+            "parent_region_id": ""
+        }
+        for region_id in region_config["region_ids"]
+    ]
 
 def _write_csv(path, rows):
+
     if not rows:
         print(f"  (skipping {path}, no rows)")
         return
-    with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].to_dict().keys()))
+
+    if is_dataclass(rows[0]):
+        records = [
+            asdict(row)
+            for row in rows
+        ]
+    else:
+        records = [
+            dict(row)
+            for row in rows
+        ]
+
+    with open(
+        path,
+        "w",
+        newline=""
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=list(records[0].keys())
+        )
+
         writer.writeheader()
-        for row in rows:
-            writer.writerow(row.to_dict())
-    print(f"  wrote {len(rows)} rows -> {path}")
+
+        writer.writerows(records)
+
+    print(
+        f"  wrote {len(records)} rows -> {path}"
+    )
 
 
 def main() -> None:
-    rng = random.Random(SEED)
+    random.Random(SEED)
     os.makedirs(OUT_DIR, exist_ok=True)
 
     print("[1/4] Generating regions, facilities, and medicines...")
     regions = generate_regions(REGION_CONFIG)
     facilities = generate_facilities(N_FACILITIES, REGION_CONFIG, seed=SEED)
     medicines = generate_medicines(ESSENTIAL_MEDICINES)
+    regions = _generate_regions(REGION_CONFIG)
     print(f"  {len(regions)} regions, {len(facilities)} facilities, {len(medicines)} medicines")
 
     # ------------------------------------------------------------------
     # Pick pairs for the 3 explicit demo scenarios up front, so the bulk
     # generation loop below knows which pairs to skip/override.
     # ------------------------------------------------------------------
-    facilities_by_region = {}
+    facilities_by_region: dict[str, list] = {}
     for f in facilities:
         facilities_by_region.setdefault(f.region_id, []).append(f)
 
-    scenario_region = REGION_CONFIG["region_ids"][0]  # reg_north
+    region_ids = list(REGION_CONFIG["region_ids"])
+    scenario_region = region_ids[0]  # reg_north
     scenario_facilities = facilities_by_region[scenario_region][:3]
     scenario_medicine = medicines[0]  # Amoxicillin
 
-    shock_region = REGION_CONFIG["region_ids"][1]  # reg_south
+    shock_region = region_ids[1]  # reg_south
     shock_facilities = facilities_by_region[shock_region][:2]
     shock_medicine = medicines[4]  # Salbutamol (respiratory outbreak makes sense)
 
-    delay_facility = facilities_by_region[REGION_CONFIG["region_ids"][2]][0]  # reg_east
+    delay_facility = facilities_by_region[region_ids[2]][0]  # reg_east
     delay_medicine = medicines[3]  # Insulin
 
     scenario_pairs = {(f.id, scenario_medicine.id) for f in scenario_facilities}
@@ -215,24 +280,24 @@ def main() -> None:
 
             consumption = simulate_consumption(
                 facility.id, medicine.id, SIM_DAYS, pattern_params,
-                start_date=date.today() - timedelta(days=SIM_DAYS),
+                start_date=datetime.now(tz=timezone.utc).date() - timedelta(days=SIM_DAYS),
                 seed=pair_seed,
             )
             orders = simulate_replenishment(
                 facility.id, medicine.id, SIM_DAYS, lead_time_dist,
                 avg_daily_use=pattern_params["base_daily_use"],
-                start_date=date.today() - timedelta(days=SIM_DAYS),
+                start_date=datetime.now(tz=timezone.utc).date() - timedelta(days=SIM_DAYS),
                 seed=pair_seed + 1,
             )
 
             avg_daily_use = pattern_params["base_daily_use"]
-            reorder_point = avg_daily_use * (lead_time_dist["mean_days"] + SAFETY_BUFFER_DAYS)
+            reorder_point = avg_daily_use * (lead_time_dist["mean_days"] + SAFETY_BUFFER_DAYS) #type: ignore
             max_capacity = reorder_point * pair_rng.uniform(*MAX_CAPACITY_MULTIPLIER_RANGE)
             initial_stock = avg_daily_use * 14  # ~2 weeks buffer to start from
 
             snapshots = _compute_inventory_snapshots(
                 facility.id, medicine.id, consumption, orders, initial_stock,
-                reorder_point, max_capacity,
+                reorder_point, max_capacity, # type: ignore
             )
 
             all_consumption.extend(consumption)

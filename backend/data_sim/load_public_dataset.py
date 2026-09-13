@@ -13,18 +13,17 @@ dataclasses everyone else consumes.
 """
 import json
 import os
-from typing import Dict, List
 
-from backend.models.facility import Facility
-from backend.models.medicine import Medicine
 from backend.models.consumption import ConsumptionRecord
-from backend.models.replenishment import ReplenishmentOrder
+from backend.models.facility import Facility
 from backend.models.inventory import InventorySnapshot
+from backend.models.medicine import Medicine
+from backend.models.replenishment import ReplenishmentOrder
 
 _PUBLIC_DATA_DIR = os.path.join("data", "public")
 
 
-def _normalize_facilities(raw: List[dict]) -> List[Facility]:
+def _normalize_facilities(raw: list[dict]) -> list[Facility]:
     return [
         Facility(
             id=r["id"],
@@ -40,7 +39,7 @@ def _normalize_facilities(raw: List[dict]) -> List[Facility]:
     ]
 
 
-def _normalize_medicines(raw: List[dict]) -> List[Medicine]:
+def _normalize_medicines(raw: list[dict]) -> list[Medicine]:
     return [
         Medicine(
             id=r["id"],
@@ -54,21 +53,36 @@ def _normalize_medicines(raw: List[dict]) -> List[Medicine]:
     ]
 
 
-def _normalize_snapshots(raw: List[dict]) -> List[InventorySnapshot]:
+def _normalize_snapshots(
+    raw: list[dict]
+) -> list[InventorySnapshot]:
+
     return [
         InventorySnapshot(
             facility_id=r["facility_id"],
             medicine_id=r["medicine_id"],
-            timestamp=r["timestamp"],
-            stock_on_hand=float(r["stock_on_hand"]),
-            reorder_point=float(r["reorder_point"]),
-            max_capacity=float(r["max_capacity"]),
+            timestamp=r.get(
+                "timestamp",
+                r.get("date", "")
+            ),
+            stock_on_hand=float(
+                r["stock_on_hand"]
+            ),
+            reorder_point=float(
+                r.get("reorder_point", 0.0)
+            ),
+            max_capacity=float(
+                r.get(
+                    "max_capacity",
+                    r["stock_on_hand"]
+                )
+            ),
         )
         for r in raw
     ]
 
 
-def _normalize_consumption(raw: List[dict]) -> List[ConsumptionRecord]:
+def _normalize_consumption(raw: list[dict]) -> list[ConsumptionRecord]:
     return [
         ConsumptionRecord(
             facility_id=r["facility_id"],
@@ -80,7 +94,7 @@ def _normalize_consumption(raw: List[dict]) -> List[ConsumptionRecord]:
     ]
 
 
-def _normalize_orders(raw: List[dict]) -> List[ReplenishmentOrder]:
+def _normalize_orders(raw: list[dict]) -> list[ReplenishmentOrder]:
     return [
         ReplenishmentOrder(
             id=r["id"],
@@ -96,7 +110,7 @@ def _normalize_orders(raw: List[dict]) -> List[ReplenishmentOrder]:
     ]
 
 
-def load_public_dataset(source_name: str) -> Dict[str, List]:
+def load_public_dataset(source_name: str) -> dict[str, list]:
     """
     Returns a dict with the same keys/shapes as the simulator output:
         {

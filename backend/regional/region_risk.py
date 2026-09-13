@@ -46,16 +46,17 @@ def aggregate_region_risk(
             medicine_id=medicine_id
         )
 
-        risk_score = float(
-            stock_status["risk_score"]
+        risk_scores.append(
+            float(stock_status["risk_score"])
         )
-
-        risk_scores.append(risk_score)
 
         if stock_status["status"] == VALID_STATUSES[0]:
             continue
 
-        elif stock_status["status"] in (VALID_STATUSES[1], VALID_STATUSES[2]) or stock_status["status"] != VALID_STATUSES[0]:
+        elif stock_status["status"] == VALID_STATUSES[1] or stock_status["status"] == VALID_STATUSES[2]:  # Watch, increase risk by a little bit
+            facilities_at_risk.append(facility)
+
+        else:  # Stockout, increase risk by a lot more
             facilities_at_risk.append(facility)
 
         rate = consumption_rate.compute_consumption_rate(
@@ -68,29 +69,43 @@ def aggregate_region_risk(
             float(rate["trend_pct"])
         )
 
-    num_risky_facilities = len(facilities_at_risk)
-    num_total_facilities = len(facilities_in_region)
+    num_risky_facilities = len(
+        facilities_at_risk
+    )
+
+    num_total_facilities = len(
+        facilities_in_region
+    )
 
     if num_total_facilities == 0:
-        pct_at_risk = 0.0
-        regional_risk_score = 0.0
+
+        return {
+            "facilities_at_risk": 0,
+            "total_facilities": 0,
+            "pct_at_risk": 0.0,
+            "regional_risk_score": 0.0,
+            "trend_direction": VALID_TRENDS[1]
+        }
+
+    pct_at_risk = (
+        num_risky_facilities
+        / num_total_facilities
+    )
+
+    regional_risk_score = (
+        sum(risk_scores)
+        / num_total_facilities
+    )
+
+    if not trend_values:
         trend_direction = VALID_TRENDS[1]
 
     else:
-        pct_at_risk = (
-            num_risky_facilities / num_total_facilities
-        )
 
-        regional_risk_score = (
-            sum(risk_scores) / num_total_facilities
+        average_trend = (
+            sum(trend_values)
+            / len(trend_values)
         )
-
-        if trend_values:
-            average_trend = (
-                sum(trend_values) / len(trend_values)
-            )
-        else:
-            average_trend = 0.0
 
         if abs(average_trend) <= 0.1:   # Difference close to 0
             trend_direction = VALID_TRENDS[1]
@@ -101,10 +116,10 @@ def aggregate_region_risk(
         else:       # Risk score is rising
             trend_direction = VALID_TRENDS[0]
 
-    return RegionRisk(
-        facilities_at_risk=num_risky_facilities,
-        total_facilities=num_total_facilities,
-        pct_at_risk=float(pct_at_risk),
-        regional_risk_score=float(regional_risk_score),
-        trend_direction=trend_direction
-    )
+    return {
+        "facilities_at_risk": num_risky_facilities,
+        "total_facilities": num_total_facilities,
+        "pct_at_risk": float(pct_at_risk),
+        "regional_risk_score": float(regional_risk_score),
+        "trend_direction": trend_direction
+    }

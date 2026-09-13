@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from typing import TypedDict
 
 from backend.config import STATUS_THRESHOLDS
-from backend.db.store import get_facilities, get_medicines
+from backend.db import store
+from backend.regional.propagation_score import shortage_propagation_score
 from backend.regional.region_risk import aggregate_region_risk
 
 
@@ -31,20 +32,25 @@ def detect_emerging_shortage(
     rising, clustered risk pattern. Sorted by regional_risk_score descending.
     """
 
-    facilities = get_facilities()
-    medicines = get_medicines()
+    facilities = store.get_facilities()
+    medicines = store.get_medicines()
 
     if medicine_id is None:
+
         medicine_ids = [
-            str(med_id)
-            for med_id in medicines["id"]
+            str(value)
+            for value in medicines["id"]
         ]
+
     else:
         medicine_ids = [medicine_id]
 
-    results: list[EmergingShortage] = []
+    region_ids = [
+        str(value)
+        for value in facilities["region_id"].dropna().unique()
+    ]
 
-    region_ids = facilities["region_id"].dropna().unique()
+    results: list[EmergingShortage] = []
 
     detected_at = datetime.now(
         timezone.utc
@@ -55,28 +61,35 @@ def detect_emerging_shortage(
         for region_id in region_ids:
 
             risk = aggregate_region_risk(
-                region_id=str(region_id),
+                region_id=region_id,
+                medicine_id=med_id
+            )
+
+            propagation = shortage_propagation_score(
+                region_id=region_id,
                 medicine_id=med_id
             )
 
             if (
                 risk["regional_risk_score"]
                 >= STATUS_THRESHOLDS["watch"]
+                or propagation["score"]
+                >= STATUS_THRESHOLDS["watch"]
             ):
 
                 results.append({
-                    "region_id": str(region_id),
+                    "region_id": region_id,
                     "regional_risk_score": float(
                         risk["regional_risk_score"]
                     ),
                     "spread_rate": float(
-                        risk["pct_at_risk"]
+                        propagation["score"]
                     ),
                     "first_detected_at": detected_at
                 })
 
     results.sort(
-        key=lambda result: result["regional_risk_score"],
+        key=lambda item: item["regional_risk_score"],
         reverse=True
     )
 
