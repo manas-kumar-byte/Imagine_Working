@@ -5,6 +5,7 @@ from typing import TypedDict
 
 from backend.db import store
 from backend.forecasting import consumption_rate
+from backend.config import DIR_CHOICE
 
 
 class StockoutForecast(TypedDict):
@@ -38,7 +39,8 @@ def forecast_days_to_stockout(
 
     inventory = store.get_inventory_snapshots(
         facility_id=facility_id,
-        medicine_id=medicine_id
+        medicine_id=medicine_id,
+        choice=DIR_CHOICE
     )
 
     if inventory.empty:

@@ -6,7 +6,7 @@ from typing import TypedDict
 
 import pandas as pd  # type: ignore[import]
 
-from backend.config import STATUS_THRESHOLDS, VALID_STATUSES
+from backend.config import STATUS_THRESHOLDS, VALID_STATUSES, DIR_CHOICE
 from backend.db import store
 from backend.forecasting import consumption_rate
 
@@ -28,7 +28,8 @@ def classify_stock_status(
 
     inventory = store.get_inventory_snapshots(
         facility_id=facility_id,
-        medicine_id=medicine_id
+        medicine_id=medicine_id,
+        choice=DIR_CHOICE
     )
 
     if inventory.empty:
@@ -63,7 +64,8 @@ def classify_stock_status(
 
     replenishment = store.get_replenishment_orders(
         facility_id=facility_id,
-        medicine_id=medicine_id
+        medicine_id=medicine_id,
+        choice=DIR_CHOICE
     )
 
     reorder_lead_time = 7.0

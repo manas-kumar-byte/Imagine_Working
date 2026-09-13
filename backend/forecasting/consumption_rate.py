@@ -5,6 +5,7 @@ Owner: Forecasting Engineer
 from typing import TypedDict
 
 from backend.db import store
+from backend.config import DIR_CHOICE
 
 
 class ConsumptionRateResult(TypedDict):
@@ -26,7 +27,8 @@ def compute_consumption_rate(
     consumption = store.get_consumption(
         facility_id=facility_id,
         medicine_id=medicine_id,
-        window_days=window_days
+        window_days=window_days,
+        choice=DIR_CHOICE
     )
 
     if consumption.empty:

@@ -9,7 +9,7 @@ SIMULATED_DIR = DATA_DIR / "simulated"
 SAMPLE_DIR = DATA_DIR / "sample"
 RAW_DIR = DATA_DIR / "raw"
 
-DIR_CHOICE = 2
+DIR_CHOICE = 3
 
 FORECAST_DIR = Path(__file__).resolve().parent / "forecasting"
 
