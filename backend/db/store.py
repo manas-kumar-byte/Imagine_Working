@@ -18,62 +18,69 @@ from backend.forecasting.stockout_forecast import StockoutDetails
 class MissingDataError(Exception):
     pass
 ###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
-def get_facilities(choice: int = 2) -> pd.DataFrame :
-    match (choice):
+"""Shared data access layer — the ONLY place that reads/writes the CSV/SQLite
+tables. Every module (B-E) reads through this so nobody hand-rolls their own
+pandas loading logic with subtly different assumptions.
+Owner: Backend/Integration Lead
+"""
+
+import pandas as pd  # type: ignore
+
+from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
+
+
+###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3
+
+def get_facilities(choice: int = 2) -> pd.DataFrame:
+    match choice:
         case 1:
-            result = pd.read_csv(RAW_DIR/"facilities.csv")
+            return pd.read_csv(RAW_DIR / "facilities.csv")
         case 2:
-            result = pd.read_csv(SAMPLE_DIR/"facilities.csv")
+            return pd.read_csv(SAMPLE_DIR / "facilities.csv")
         case 3:
-            result = pd.read_csv(SIMULATED_DIR/"facilities.csv")
+            return pd.read_csv(SIMULATED_DIR / "facilities.csv")
         case _:
             raise ValueError("Input must be 1 2 or 3")
-    if not result.empty:
-        return result
-    else:
-        raise MissingDataError("Empty DataFrame")
-            
 
 
 def get_medicines(choice: int = 2) -> pd.DataFrame:
-    match (choice):
+    match choice:
         case 1:
-            result =  pd.read_csv(RAW_DIR/"medicines.csv")
+            return pd.read_csv(RAW_DIR / "medicines.csv")
         case 2:
-            result = pd.read_csv(SAMPLE_DIR/"medicines.csv")
+            return pd.read_csv(SAMPLE_DIR / "medicines.csv")
         case 3:
-            result = pd.read_csv(SIMULATED_DIR/"medicines.csv")
+            return pd.read_csv(SIMULATED_DIR / "medicines.csv")
         case _:
             raise ValueError("Input must be 1 2 or 3")
-    if not result.empty:
-        return result
-    else:
-        raise MissingDataError("Empty DataFrame")
+
 
 def get_regions(choice: int = 2) -> pd.DataFrame:
-    match (choice):
+    match choice:
         case 1:
-            result = pd.read_csv("data/raw/regions.csv")
+            return pd.read_csv(RAW_DIR / "region.csv")
         case 2:
-            result = pd.read_csv("data/sample/regions.csv")
+            return pd.read_csv(SAMPLE_DIR / "region.csv")
         case 3:
-            result = pd.read_csv("data/simulated/regions.csv")
+            return pd.read_csv(SIMULATED_DIR / "region.csv")
         case _:
             raise ValueError("Input must be 1 2 or 3")
-    if not result.empty:
-        return result
-    else:
-        raise MissingDataError("Empty DataFrame")
 
 
+def get_inventory_snapshots(
+    choice: int = 2,
+    facility_id: str | None = None,
+    medicine_id: str | None = None
+) -> pd.DataFrame:
 
-def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
-    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
+    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
 
-    if (choice in {1,2,3}): 
-        inventory = pd.read_csv(files[choice-1]/"inventory_snapshots.csv")
-    else:
+    if choice not in {1, 2, 3}:
         raise ValueError("Input must be 1 2 or 3")
+
+    inventory = pd.read_csv(
+        files[choice - 1] / "inventory_snapshots.csv"
+    )
 
     if facility_id is not None:
         inventory = inventory[
@@ -88,25 +95,25 @@ def get_inventory_snapshots(choice: int = 2, facility_id: str | None = None, med
     return inventory
 
 
-def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None, window_days: int | None = None) -> pd.DataFrame:
-    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
+def get_consumption(
+    choice: int = 2,
+    facility_id: str | None = None,
+    medicine_id: str | None = None,
+    window_days: int | None = None
+) -> pd.DataFrame:
 
-    if (choice in {1,2,3}): 
-        consumption = pd.read_csv(files[choice-1]/"consumption.csv")
-    else:
+    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
+
+    if choice not in {1, 2, 3}:
         raise ValueError("Input must be 1 2 or 3")
+
+    consumption = pd.read_csv(
+        files[choice - 1] / "consumption.csv"
+    )
 
     consumption["date"] = pd.to_datetime(consumption["date"])
 
     filtered = consumption
-
-    if window_days is not None:
-        latest = consumption["date"].max()
-        start_date = latest - pd.Timedelta(days=window_days - 1)
-        filtered = consumption[
-            (consumption["date"] >= start_date) &
-            (consumption["date"] <= latest)
-        ]
 
     if facility_id is not None:
         filtered = filtered[
@@ -118,22 +125,49 @@ def get_consumption(choice: int = 2, facility_id: str | None = None, medicine_id
             filtered["medicine_id"] == medicine_id
         ]
 
+    if window_days is not None:
+
+        if window_days <= 0:
+            raise ValueError("window_days must be greater than 0")
+
+        if not filtered.empty:
+            latest_date = filtered["date"].max()
+            start_date = latest_date - pd.Timedelta(
+                days=window_days - 1
+            )
+
+            filtered = filtered[
+                (filtered["date"] >= start_date)
+                & (filtered["date"] <= latest_date)
+            ]
+
     return filtered
 
 
-def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, medicine_id: str | None = None) -> pd.DataFrame:
-    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
+def get_replenishment_orders(
+    choice: int = 2,
+    facility_id: str | None = None,
+    medicine_id: str | None = None
+) -> pd.DataFrame:
 
-    if (choice in {1,2,3}): 
-        replenishment = pd.read_csv(files[choice-1]/"replenishment_orders.csv")
-    else:
+    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
+
+    if choice not in {1, 2, 3}:
         raise ValueError("Input must be 1 2 or 3")
 
+    replenishment = pd.read_csv(
+        files[choice - 1] / "replenishment_orders.csv"
+    )
+
     if facility_id is not None:
-        replenishment = replenishment[replenishment["facility_id"] == facility_id]
+        replenishment = replenishment[
+            replenishment["facility_id"] == facility_id
+        ]
 
     if medicine_id is not None:
-        replenishment = replenishment[replenishment["medicine_id"] == medicine_id]
+        replenishment = replenishment[
+            replenishment["medicine_id"] == medicine_id
+        ]
 
     return replenishment
 
