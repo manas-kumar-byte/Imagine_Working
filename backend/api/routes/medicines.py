@@ -13,10 +13,8 @@ router = APIRouter(prefix="/medicines", tags=["medicines"])
 def list_medicines(medicine_id: str | None = None) -> list[Medicine]:
 
     medicines = get_medicines()
-    print(type(medicines))
     if medicine_id is not None:
         medicines = medicines[medicines["id"] == medicine_id]
-    medicine_list = []
 
     return [Medicine(**row) for row in medicines.to_dict('records')]
 
