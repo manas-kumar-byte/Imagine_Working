@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd  # type: ignore
 
-from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR, DIR_CHOICE
+from backend.config import DIR_CHOICE, RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
 
 
 class MissingDataError(Exception):
