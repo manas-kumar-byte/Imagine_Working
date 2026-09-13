@@ -16,8 +16,5 @@ def list_medicines(medicine_id: str | None = None) -> list[Medicine]:
     if medicine_id is not None:
         medicines = medicines[medicines["id"] == medicine_id]
 
-    return [
-        Medicine(**row)
-        for row in medicines
-    ]
+    return [Medicine(**row) for row in medicines.to_dict('records')]
 
