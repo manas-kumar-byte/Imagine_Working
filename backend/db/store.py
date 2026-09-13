@@ -1,91 +1,114 @@
-"""Shared data access layer — the ONLY place that reads/writes the CSV/SQLite
-tables. Every module (B-E) reads through this so nobody hand-rolls their own
-pandas loading logic with subtly different assumptions.
-Owner: Backend/Integration Lead
 """
-import pandas as pd  #type: ignore
+Shared data access layer.
+
+This is the only module responsible for reading/writing CSV data.
+All other backend modules should access data through these functions.
+"""
+
+from pathlib import Path
+
+import pandas as pd  # type: ignore
 
 from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
-from backend.forecasting.stockout_forecast import StockoutDetails
 
-### Note: There is no way to get stockouts and regional data
-#         (I need that to even start regional)
-#                       - Polo Venat
-# Also for all those functions that accept both facility id and medicine id,
-# please make them return a dataclass instead of dataframe
-# it makes acccessing data easier
 
 class MissingDataError(Exception):
-    pass
-###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3 
-"""Shared data access layer — the ONLY place that reads/writes the CSV/SQLite
-tables. Every module (B-E) reads through this so nobody hand-rolls their own
-pandas loading logic with subtly different assumptions.
-Owner: Backend/Integration Lead
-"""
+    """Raised when required data is unavailable."""
 
 
-###### to pick from RAW do choice=1 for SAMPLE c=2 for simulated c=3
+_DATA_DIRS = {
+    1: RAW_DIR,
+    2: SAMPLE_DIR,
+    3: SIMULATED_DIR,
+}
+
+
+def _get_data_dir(choice: int) -> Path:
+    if choice not in _DATA_DIRS:
+        raise ValueError("choice must be 1, 2, or 3")
+    return _DATA_DIRS[choice]
+
+
+def _read_csv(choice: int, filename: str) -> pd.DataFrame:
+    path = _get_data_dir(choice) / filename
+
+    if not path.exists():
+        raise MissingDataError(f"Data file not found: {path}")
+
+    return pd.read_csv(path)
+
 
 def get_facilities(choice: int = 2) -> pd.DataFrame:
-    match choice:
-        case 1:
-            return pd.read_csv(RAW_DIR / "facilities.csv")
-        case 2:
-            return pd.read_csv(SAMPLE_DIR / "facilities.csv")
-        case 3:
-            return pd.read_csv(SIMULATED_DIR / "facilities.csv")
-        case _:
-            raise ValueError("Input must be 1 2 or 3")
+    return _read_csv(choice, "facilities.csv")
 
 
 def get_medicines(choice: int = 2) -> pd.DataFrame:
-    match choice:
-        case 1:
-            return pd.read_csv(RAW_DIR / "medicines.csv")
-        case 2:
-            return pd.read_csv(SAMPLE_DIR / "medicines.csv")
-        case 3:
-            return pd.read_csv(SIMULATED_DIR / "medicines.csv")
-        case _:
-            raise ValueError("Input must be 1 2 or 3")
+    return _read_csv(choice, "medicines.csv")
 
 
 def get_regions(choice: int = 2) -> pd.DataFrame:
-    match choice:
-        case 1:
-            return pd.read_csv(RAW_DIR / "region.csv")
-        case 2:
-            return pd.read_csv(SAMPLE_DIR / "region.csv")
-        case 3:
-            return pd.read_csv(SIMULATED_DIR / "region.csv")
-        case _:
-            raise ValueError("Input must be 1 2 or 3")
+    """
+    Load regions.
+
+    The project uses both 'region.csv' and 'regions.csv' in different
+    parts of the repository, so support both names.
+
+    If sample region data does not exist, regions are safely inferred
+    from the facilities dataset.
+    """
+
+    data_dir = _get_data_dir(choice)
+
+    # Prefer the plural filename used by seed_data.py.
+    plural_path = data_dir / "regions.csv"
+    singular_path = data_dir / "region.csv"
+
+    if plural_path.exists():
+        return pd.read_csv(plural_path)
+
+    if singular_path.exists():
+        return pd.read_csv(singular_path)
+
+    # Sample data currently does not contain a regions CSV.
+    # Infer it from facilities so the region API still works.
+    facilities = get_facilities(choice)
+
+    if "region_id" not in facilities.columns:
+        raise MissingDataError(
+            f"No region data found in {data_dir} and facilities.csv "
+            f"does not contain region_id."
+        )
+
+    region_ids = facilities["region_id"].dropna().astype(str).unique()
+
+    return pd.DataFrame(
+        [
+            {
+                "id": region_id,
+                "name": region_id.replace("_", " ").title(),
+                "parent_region_id": "",
+            }
+            for region_id in region_ids
+        ]
+    )
 
 
 def get_inventory_snapshots(
     choice: int = 2,
     facility_id: str | None = None,
-    medicine_id: str | None = None
+    medicine_id: str | None = None,
 ) -> pd.DataFrame:
 
-    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
-
-    if choice not in {1, 2, 3}:
-        raise ValueError("Input must be 1 2 or 3")
-
-    inventory = pd.read_csv(
-        files[choice - 1] / "inventory_snapshots.csv"
-    )
+    inventory = _read_csv(choice, "inventory_snapshots.csv")
 
     if facility_id is not None:
         inventory = inventory[
-            inventory["facility_id"] == facility_id
+            inventory["facility_id"].astype(str) == str(facility_id)
         ]
 
     if medicine_id is not None:
         inventory = inventory[
-            inventory["medicine_id"] == medicine_id
+            inventory["medicine_id"].astype(str) == str(medicine_id)
         ]
 
     return inventory
@@ -95,109 +118,149 @@ def get_consumption(
     choice: int = 2,
     facility_id: str | None = None,
     medicine_id: str | None = None,
-    window_days: int | None = None
+    window_days: int | None = None,
 ) -> pd.DataFrame:
 
-    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
+    if window_days is not None and window_days <= 0:
+        raise ValueError("window_days must be greater than 0")
 
-    if choice not in {1, 2, 3}:
-        raise ValueError("Input must be 1 2 or 3")
+    consumption = _read_csv(choice, "consumption.csv")
 
-    consumption = pd.read_csv(
-        files[choice - 1] / "consumption.csv"
-    )
+    if "date" in consumption.columns:
+        consumption["date"] = pd.to_datetime(
+            consumption["date"],
+            errors="coerce",
+        )
 
-    consumption["date"] = pd.to_datetime(consumption["date"])
-
+    # IMPORTANT:
+    # Filter facility + medicine BEFORE finding the latest date.
+    # Otherwise one facility can accidentally inherit another facility's
+    # time window.
     filtered = consumption
 
     if facility_id is not None:
         filtered = filtered[
-            filtered["facility_id"] == facility_id
+            filtered["facility_id"].astype(str) == str(facility_id)
         ]
 
     if medicine_id is not None:
         filtered = filtered[
-            filtered["medicine_id"] == medicine_id
+            filtered["medicine_id"].astype(str) == str(medicine_id)
         ]
 
-    if window_days is not None:
+    if window_days is not None and not filtered.empty:
+        latest_date = filtered["date"].max()
 
-        if window_days <= 0:
-            raise ValueError("window_days must be greater than 0")
+        start_date = latest_date - pd.Timedelta(
+            days=window_days - 1
+        )
 
-        if not filtered.empty:
-            latest_date = filtered["date"].max()
-            start_date = latest_date - pd.Timedelta(
-                days=window_days - 1
-            )
+        filtered = filtered[
+            (filtered["date"] >= start_date)
+            & (filtered["date"] <= latest_date)
+        ]
 
-            filtered = filtered[
-                (filtered["date"] >= start_date)
-                & (filtered["date"] <= latest_date)
-            ]
-
-    return filtered
+    return filtered.reset_index(drop=True)
 
 
 def get_replenishment_orders(
     choice: int = 2,
     facility_id: str | None = None,
-    medicine_id: str | None = None
+    medicine_id: str | None = None,
 ) -> pd.DataFrame:
 
-    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
-
-    if choice not in {1, 2, 3}:
-        raise ValueError("Input must be 1 2 or 3")
-
-    replenishment = pd.read_csv(
-        files[choice - 1] / "replenishment_orders.csv"
+    replenishment = _read_csv(
+        choice,
+        "replenishment_orders.csv",
     )
 
     if facility_id is not None:
         replenishment = replenishment[
-            replenishment["facility_id"] == facility_id
+            replenishment["facility_id"].astype(str) == str(facility_id)
         ]
 
     if medicine_id is not None:
         replenishment = replenishment[
-            replenishment["medicine_id"] == medicine_id
+            replenishment["medicine_id"].astype(str) == str(medicine_id)
         ]
 
-    return replenishment
+    return replenishment.reset_index(drop=True)
 
-# Require a way to set stockout details so I can write new risk_score into the csv
+
 def get_stockout_details(choice: int = 2) -> pd.DataFrame:
-    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
+    return _read_csv(choice, "stockouts.csv")
 
-    if (choice in {1,2,3}): 
-        stockout = pd.read_csv(files[choice-1]/"stockouts.csv")
+
+def set_stockout_details(
+    stockout_details: dict,
+    choice: int = 2,
+) -> None:
+    """
+    Update an existing stockout record or append a new one.
+
+    Supports both distributor_id and distributor naming used by
+    different versions of the project.
+    """
+
+    data_dir = _get_data_dir(choice)
+    path = data_dir / "stockouts.csv"
+
+    if path.exists():
+        stockout = pd.read_csv(path)
     else:
-        raise ValueError("Input must be 1 2 or 3")
+        stockout = pd.DataFrame(
+            columns=[
+                "region_id",
+                "distributor_id",
+                "medicine_id",
+                "num_stockouts",
+                "num_critical",
+                "num_watch",
+                "num_healthy",
+                "risk_score",
+            ]
+        )
 
-    return stockout
+    distributor = stockout_details.get(
+        "distributor_id",
+        stockout_details.get("distributor", ""),
+    )
 
-# Setter functions
+    new_row = {
+        "region_id": str(stockout_details["region_id"]),
+        "distributor_id": str(distributor),
+        "medicine_id": str(stockout_details["medicine_id"]),
+        "num_stockouts": int(stockout_details.get("num_stockout", 0)),
+        "num_critical": int(stockout_details.get("num_critical", 0)),
+        "num_watch": int(stockout_details.get("num_watch", 0)),
+        "num_healthy": int(stockout_details.get("num_healthy", 0)),
+        "risk_score": float(stockout_details.get("risk_score", 0.0)),
+    }
 
-def set_stockout_details(stockout_details: StockoutDetails, choice: int = 2):
-    files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]
-
-    if choice in {1, 2, 3}:
-        stockout = pd.read_csv(files[choice - 1] / "stockouts.csv")
+    if stockout.empty:
+        stockout = pd.DataFrame([new_row])
     else:
-        raise ValueError("Input must be 1, 2 or 3")
+        mask = (
+            stockout["region_id"].astype(str)
+            == new_row["region_id"]
+        ) & (
+            stockout["distributor_id"].astype(str)
+            == new_row["distributor_id"]
+        ) & (
+            stockout["medicine_id"].astype(str)
+            == new_row["medicine_id"]
+        )
 
-    mask = (stockout["region_id"] == stockout_details["region_id"]) & \
-           (stockout["distributor_id"] == stockout_details["distributor"]) & \
-           (stockout["medicine_id"] == stockout_details["medicine_id"])         # Match by region, distributo and medicine
-    
-    stockout.loc[mask] = [stockout_details["region_id"],
-                          stockout_details["distributor"],
-                          stockout_details["medicine_id"],
-                          stockout_details["num_stockout"],
-                          stockout_details["num_critical"],
-                          stockout_details["num_watch"],
-                          stockout_details["num_healthy"],
-                          stockout_details["risk_score"]]
-    stockout.to_csv(files[choice - 1] / "stockouts.csv")    
+        if mask.any():
+            for column, value in new_row.items():
+                stockout.loc[mask, column] = value
+        else:
+            stockout = pd.concat(
+                [
+                    stockout,
+                    pd.DataFrame([new_row]),
+                ],
+                ignore_index=True,
+            )
+
+    stockout.to_csv(path, index=False)

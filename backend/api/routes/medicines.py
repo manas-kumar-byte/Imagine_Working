@@ -41,7 +41,7 @@ def list_medicines(
         )
 
         result.append(
-            Medicine(**row)
+            Medicine(**row)  # type: ignore
         )
 
     return result
