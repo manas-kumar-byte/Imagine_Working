@@ -6,7 +6,7 @@ Run with: uvicorn backend.api.main:app --reload --port 8000
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import alerts, facilities, recommendations, regions
+from backend.api.routes import alerts, facilities, recommendations, regions, medicines
 
 app = FastAPI(title="Shortage Radar API")
 
@@ -21,7 +21,7 @@ app.include_router(facilities.router)
 app.include_router(regions.router)
 app.include_router(alerts.router)
 app.include_router(recommendations.router)
-
+app.include_router(medicines.router)
 
 @app.get("/health")
 def health():
