@@ -5,7 +5,7 @@ import "./styles/global.css";
 //import {getFacilities} from '..';
 
 // const facilities = await(getFacilities());
-console.log(facilities)
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
