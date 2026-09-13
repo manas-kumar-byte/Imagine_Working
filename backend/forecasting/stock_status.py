@@ -4,9 +4,9 @@ Owner: Forecasting Engineer
 
 from typing import TypedDict
 
-import pandas as pd
+import pandas as pd  # type: ignore
 
-from backend.config import VALID_STATUSES, STATUS_THRESHOLDS
+from backend.config import STATUS_THRESHOLDS, VALID_STATUSES
 from backend.db import store
 from backend.forecasting import consumption_rate
 

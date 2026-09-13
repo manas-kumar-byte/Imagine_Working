@@ -4,10 +4,10 @@ Owner: Forecasting Engineer (or shared with Recommendation Engineer)
 
 from typing import TypedDict
 
-from backend.config import VALID_TRENDS, VALID_STATUSES
+from backend.config import VALID_STATUSES, VALID_TRENDS
 from backend.db import store
-from backend.forecasting.stock_status import classify_stock_status
 from backend.forecasting import consumption_rate
+from backend.forecasting.stock_status import classify_stock_status
 
 
 class RegionRisk(TypedDict):
@@ -55,13 +55,7 @@ def aggregate_region_risk(
         if stock_status["status"] == VALID_STATUSES[0]:
             continue
 
-        elif stock_status["status"] == VALID_STATUSES[1]:  # Watch, increase risk by a little bit
-            facilities_at_risk.append(facility)
-
-        elif stock_status["status"] == VALID_STATUSES[2]:  # Critical, increase risk by a bit more
-            facilities_at_risk.append(facility)
-
-        else:  # Stockout, increase risk by a lot more
+        elif stock_status["status"] in (VALID_STATUSES[1], VALID_STATUSES[2]) or stock_status["status"] != VALID_STATUSES[0]:
             facilities_at_risk.append(facility)
 
         rate = consumption_rate.compute_consumption_rate(
