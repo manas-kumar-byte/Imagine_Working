@@ -124,5 +124,14 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
 
     return replenishment
 
+def get_stockout_details(choice: int = 2) -> pd.DataFrame:
+    files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
+
+    if (choice in {1,2,3}): 
+        stockout = pd.read_csv(files[choice-1]/"stockouts.csv")
+    else:
+        raise ValueError("Input must be 1 2 or 3")
+
+    return stockout
 # Polo Venat here again
 # I will be assuming that get_stockout_details() returns a 
