@@ -1,13 +1,13 @@
 id,name,category,unit,essential_flag,substitute_ids
-med_amoxicillin,Amoxicillin,antibiotic,tablets,True,['med_ciprofloxacin']
-med_paracetamol,Paracetamol,analgesic,tablets,True,[]
-med_oral_rehydration_salts,Oral Rehydration Salts,rehydration,sachets,True,[]
-med_insulin,Insulin,hormone,vials,True,[]
-med_salbutamol,Salbutamol,respiratory,inhalers,True,[]
-med_ciprofloxacin,Ciprofloxacin,antibiotic,tablets,True,['med_amoxicillin']
-med_diazepam,Diazepam,anticonvulsant,tablets,True,[]
-med_folic_acid,Folic Acid,supplement,tablets,True,[]
-med_artesunate,Artesunate,antimalarial,tablets,True,[]
-med_oxytocin,Oxytocin,obstetric,vials,True,[]
-med_ringer_s_lactate,Ringer's Lactate,iv_fluid,ml,True,[]
-med_isoniazid,Isoniazid,antituberculosis,tablets,True,[]
+med_paracetamol,Paracetamol,analgesic,tablets,True,"med_ibuprofen,med_aspirin"
+med_amoxicillin,Amoxicillin,antibiotic,tablets,True,"med_azithromycin,med_doxycycline"
+med_azithromycin,Azithromycin,antibiotic,tablets,True,"med_amoxicillin,med_doxycycline"
+med_insulin,Insulin,hormone,vials,True,
+med_ors,ORS,rehydration,sachets,True,
+med_ibuprofen,Ibuprofen,analgesic,tablets,True,"med_paracetamol,med_aspirin"
+med_ceftriaxone,Ceftriaxone,other,units,True,
+med_metformin,Metformin,other,units,True,
+med_salbutamol,Salbutamol,respiratory,inhalers,True,
+med_aspirin,Aspirin,analgesic,tablets,True,"med_paracetamol,med_ibuprofen"
+med_doxycycline,Doxycycline,antibiotic,tablets,True,"med_amoxicillin,med_azithromycin"
+med_hydrocortisone,Hydrocortisone,other,units,True,
