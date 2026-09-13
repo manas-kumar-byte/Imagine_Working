@@ -1,12 +1,11 @@
 """Module D — Redistribution recommendation.
 Owner: Recommendation Engineer
 """
-from typing import List, TypedDict
 
 from backend.explainability import data_access as da
+from backend.models.RedistributionRecommendation import RedistributionRecommendation
 from backend.recommendation.surplus_finder import find_surplus_facilities
 
-from backend.models.RedistributionRecommendation import RedistributionRecommendation
 # Search progressively wider if nothing found nearby — keeps the demo from
 # returning an empty list just because the radius was too tight.
 SEARCH_RADII_KM = [25, 75, 150]
@@ -38,7 +37,7 @@ def _feasibility_score(distance_km: float, surplus_qty: float, medicine_id: str)
     return round(max(0.0, min(1.0, score)), 2)
 
 
-def recommend_redistribution(deficit_facility_id: str, medicine_id: str) -> List[RedistributionRecommendation]:
+def recommend_redistribution(deficit_facility_id: str, medicine_id: str) -> list[RedistributionRecommendation]:
     """Ranked list, highest priority first.
 
     urgency_score should weigh: recipient's days_remaining, distance, and the
@@ -58,7 +57,7 @@ def recommend_redistribution(deficit_facility_id: str, medicine_id: str) -> List
         if surplus_candidates:
             break
 
-    recommendations: List[RedistributionRecommendation] = []
+    recommendations: list[RedistributionRecommendation] = []
     for cand in surplus_candidates:
         source_status = da.classify_stock_status(cand["facility_id"], medicine_id)
         urgency = _urgency_score(
@@ -77,5 +76,3 @@ def recommend_redistribution(deficit_facility_id: str, medicine_id: str) -> List
 
     recommendations.sort(key=lambda r: (r["urgency_score"], r["feasibility_score"]), reverse=True)
     return recommendations
-
-    raise NotImplementedError

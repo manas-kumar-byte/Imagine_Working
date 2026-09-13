@@ -1,16 +1,14 @@
 """Module D — Surplus facility finder.
 Owner: Recommendation Engineer
 """
-from typing import List, TypedDict
 
-
-from backend.models.SurplusFacility import SurplusFacility
 
 from backend.explainability import data_access as da
+from backend.models.SurplusFacility import SurplusFacility
 
 SAFETY_BUFFER_PCT = 0.2
 
-def find_surplus_facilities(medicine_id: str, near_facility_id: str, radius_km: float) -> List[SurplusFacility]:
+def find_surplus_facilities(medicine_id: str, near_facility_id: str, radius_km: float) -> list[SurplusFacility]:
     """Finds facilities within radius_km of near_facility_id that hold stock
     above their own reorder_point + a safety buffer, for the given medicine.
     """
@@ -22,7 +20,7 @@ def find_surplus_facilities(medicine_id: str, near_facility_id: str, radius_km: 
         origin.lat, origin.lon, radius_km, exclude_facility_id=near_facility_id
     )
 
-    results: List[SurplusFacility] = []
+    results: list[SurplusFacility] = []
     for fac in candidates:
         snap = da.get_inventory_snapshot(fac.id, medicine_id)
         if snap is None:
@@ -40,4 +38,3 @@ def find_surplus_facilities(medicine_id: str, near_facility_id: str, radius_km: 
 
     results.sort(key=lambda r: r["distance_km"])
     return results
-    raise NotImplementedError

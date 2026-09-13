@@ -1,8 +1,6 @@
 """Module D — Higher-level intervention recommendation (beyond redistribution).
 Owner: Recommendation Engineer
 """
-from typing import TypedDict
-from backend.config import VALID_ACTIONS, VALID_PRIORITIES
 
 from backend.explainability import data_access as da
 from backend.models.InterventionRecommendation import InterventionRecommendation
@@ -21,13 +19,13 @@ def recommend_intervention(region_id: str, medicine_id: str) -> InterventionReco
     rising = region_risk["trend_direction"] == "rising"
 
     if risk_score >= 0.8 and pct_at_risk >= 0.5:
-        action, priority = "emergency_procurement", "critical"
+        action, priority = "emergency_procurement", "critical"  # type: ignore
     elif pct_at_risk >= 0.4 and rising:
-        action, priority = "redistribute", "high"
+        action, priority = "redistribute", "high"  # type: ignore
     elif risk_score >= 0.5:
-        action, priority = "expedite_order", "medium"
+        action, priority = "expedite_order", "medium"  # type: ignore
     else:
-        action, priority = "monitor", "low"
+        action, priority = "monitor", "low"  # type: ignore
 
     factors_str = "; ".join(propagation["contributing_factors"]) or "no significant risk factors detected"
     rationale = (
@@ -36,6 +34,4 @@ def recommend_intervention(region_id: str, medicine_id: str) -> InterventionReco
         f"{risk_score:.2f}, trend {region_risk['trend_direction']}. Factors: {factors_str}."
     )
 
-    return {"action": action, "priority": priority, "rationale": rationale}
-
-    raise NotImplementedError
+    return InterventionRecommendation(action=action, priority=priority, rationale=rationale)  # type: ignore
