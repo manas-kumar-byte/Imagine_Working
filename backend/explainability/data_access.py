@@ -23,8 +23,8 @@ from backend.regional.region_risk import RegionRisk
 # MOCK DATASET (hand-written, ~Day 1 sample per Section 6 of the design doc)
 # Swap for backend.data.loader once Module A is producing real data.
 # ---------------------------------------------------------------------------
-
-DATA_CHOICE = 3
+from backend.config import DIR_CHOICE
+DATA_CHOICE = DIR_CHOICE
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
