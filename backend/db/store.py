@@ -187,7 +187,7 @@ def get_replenishment_orders(
     return replenishment.reset_index(drop=True)
 
 
-def get_stockout_details(choice: int = 2) -> pd.DataFrame:
+def get_stockout_details(choice: int = DIR_CHOICE) -> pd.DataFrame:
     return _read_csv(choice, "stockouts.csv")
 
 
