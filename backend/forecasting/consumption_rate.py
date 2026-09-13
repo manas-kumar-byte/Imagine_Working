@@ -1,9 +1,10 @@
 """Module B — Consumption rate computation.
 Owner: Forecasting Engineer
 """
+
 from typing import TypedDict
+
 from backend.db import store
-from pandas import DataFrame
 
 
 class ConsumptionRateResult(TypedDict):
@@ -12,18 +13,47 @@ class ConsumptionRateResult(TypedDict):
     volatility: float    # coefficient of variation or similar
 
 
-def compute_consumption_rate(facility_id: str, medicine_id: str, window_days: int) -> ConsumptionRateResult:
+def compute_consumption_rate(
+    facility_id: str,
+    medicine_id: str,
+    window_days: int
+) -> ConsumptionRateResult:
+
     """Reads ConsumptionRecords for the given window via backend.db.store,
     returns average daily use, trend, and volatility.
     """
-    consumption = store.get_consumption(facility_id=facility_id, medicine_id=medicine_id, window_days=window_days)
 
-    avg_daily_use = consumption["quantity_dispensed"].mean()
-    if not consumption.empty:
-        trend_pct = ((consumption.tail(1)["quantity_dispensed"] / consumption.iloc[0]["quantity_dispensed"]) - 1) * 100
+    consumption = store.get_consumption(
+        facility_id=facility_id,
+        medicine_id=medicine_id,
+        window_days=window_days
+    )
+
+    if consumption.empty:
+        return ConsumptionRateResult(
+            avg_daily_use=0.0,
+            trend_pct=0.0,
+            volatility=0.0
+        )
+
+    consumption = consumption.sort_values("date")
+
+    quantities = consumption["quantity_dispensed"].astype(float)
+
+    avg_daily_use = float(quantities.mean())
+
+    first_value = float(quantities.iloc[0])
+    last_value = float(quantities.iloc[-1])
+
+    if first_value == 0:
+        trend_pct = 0.0
     else:
-        trend_pct = -1
-    # Volatility is simply standard deviation
-    volatility = consumption["quantity_dispensed"].std()
+        trend_pct = (last_value / first_value) - 1.0
 
-    return ConsumptionRateResult(avg_daily_use=avg_daily_use, trend_pct=trend_pct, volatility=volatility)
+    volatility = float(quantities.std()) if len(quantities) > 1 else 0.0
+
+    return ConsumptionRateResult(
+        avg_daily_use=avg_daily_use,
+        trend_pct=float(trend_pct),
+        volatility=volatility
+    )
