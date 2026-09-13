@@ -2,8 +2,9 @@
 Owner: Forecasting Engineer
 """
 from typing import TypedDict
-from backend.forecasting import consumption_rate
+
 from backend.db import store
+from backend.forecasting import consumption_rate
 
 
 class StockoutForecast(TypedDict):
