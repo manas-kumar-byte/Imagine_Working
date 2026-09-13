@@ -3,10 +3,12 @@ tables. Every module (B-E) reads through this so nobody hand-rolls their own
 pandas loading logic with subtly different assumptions.
 Owner: Backend/Integration Lead
 """
-import pandas as pd  #type: ignore
 from typing import TypedDict
 
+import pandas as pd  #type: ignore
+
 from backend.config import RAW_DIR, SAMPLE_DIR, SIMULATED_DIR
+from backend.forecasting.stockout_forecast import StockoutDetails
 
 ### Note: There is no way to get stockouts and regional data
 #         (I need that to even start regional)
@@ -149,16 +151,6 @@ def get_stockout_details(choice: int = 2) -> pd.DataFrame:
     return stockout
 
 # Setter functions
-
-class StockoutDetails(TypedDict):
-    region_id: str
-    distributor: str
-    medicine_id: str
-    num_stockout: int
-    num_critical: int
-    num_watch: int
-    num_healthy: int
-    risk_score: float
 
 def set_stockout_details(stockout_details: StockoutDetails, choice: int = 2):
     files = [RAW_DIR, SAMPLE_DIR, SIMULATED_DIR]

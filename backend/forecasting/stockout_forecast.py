@@ -12,6 +12,15 @@ class StockoutForecast(TypedDict):
     high_estimate: float
     method: str   # e.g. "linear_depletion", "arima", "moving_average"
 
+class StockoutDetails(TypedDict):
+    region_id: str
+    distributor: str
+    medicine_id: str
+    num_stockout: int
+    num_critical: int
+    num_watch: int
+    num_healthy: int
+    risk_score: float
 
 def forecast_days_to_stockout(facility_id: str, medicine_id: str) -> StockoutForecast:
     """Combines current stock_on_hand with compute_consumption_rate() output
