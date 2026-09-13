@@ -1,28 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 
-import {getFacilities} from "../api/client";
-
-
+import {
+  getFacilityStatus,
+  getMedicines,
+} from "../api/client";
 
 // Facilities colored by status; regions shaded by regional_risk_score.
 // This is the demo's money shot — prioritize this component's polish.
 // Owner: Frontend/Product Lead
 
-export default function MapView({ facilities = [], regionRisk = {} }) {
-
+export default function MapView({
+  facilities = [],
+  regionRisk = {},
+}) {
   /*
    * ============================================================
    * REGION LAYOUT
    * ============================================================
-   *
-   * These are the visual regions of our fictional city.
-   *
-   * region_id determines WHICH part of the SVG a facility belongs
-   * to. Latitude/longitude then determines WHERE inside that region
-   * the facility appears.
-   *
-   * This is intentional because the SVG is not a real geographic
-   * map.
    */
 
   const REGION_BOUNDS = {
@@ -51,37 +45,85 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
 
   /*
    * ============================================================
-   * FACILITY POSITIONING
+   * MEDICINE / FACILITY HOVER STATE
+   * ============================================================
+   */
+
+  const [medicines, setMedicines] = useState([]);
+
+  const [hoveredFacility, setHoveredFacility] =
+    useState(null);
+
+  const [facilityStatuses, setFacilityStatuses] =
+    useState([]);
+
+  const [loadingStatuses, setLoadingStatuses] =
+    useState(false);
+
+
+  /*
+   * ============================================================
+   * STATUS COLORS
+   * ============================================================
+   */
+
+  const STATUS_COLORS = {
+    healthy: "#2e7d32",
+    watch: "#f9a825",
+    critical: "#ef6c00",
+    stockout: "#c62828",
+  };
+
+
+  /*
+   * ============================================================
+   * LOAD MEDICINES
    * ============================================================
    *
-   * We calculate the geographic range INSIDE each region.
-   *
-   * Example:
-   *
-   * reg_north facilities have their own lat/lon range.
-   * That range gets mapped into the North part of the SVG.
-   *
-   * This means:
-   *
-   *     region_id -> district
-   *     lat/lon   -> position inside district
+   * We only need to fetch the medicine list once.
+   */
+
+  useEffect(() => {
+    async function loadMedicines() {
+      try {
+        const data = await getMedicines();
+
+        setMedicines(data);
+      } catch (error) {
+        console.error(
+          "Failed to load medicines:",
+          error
+        );
+      }
+    }
+
+    loadMedicines();
+  }, []);
+
+
+  /*
+   * ============================================================
+   * FACILITY POSITIONING
+   * ============================================================
    */
 
   const getRegionFacilities = (regionId) => {
     return facilities.filter(
-      (facility) => facility.region_id === regionId
+      (facility) =>
+        facility.region_id === regionId
     );
   };
 
 
   const getFacilityPosition = (facility) => {
-
-    const region = REGION_BOUNDS[facility.region_id];
+    const region =
+      REGION_BOUNDS[facility.region_id];
 
     /*
      * Unknown region:
      * Put it somewhere safe in the middle.
      */
+
     if (!region) {
       return {
         x: 500,
@@ -90,21 +132,26 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
     }
 
 
-    const regionFacilities = getRegionFacilities(
-      facility.region_id
-    );
+    const regionFacilities =
+      getRegionFacilities(
+        facility.region_id
+      );
 
 
     /*
-     * Extract latitude/longitude values for this region.
+     * Extract latitude/longitude values
+     * for this region.
      */
-    const lats = regionFacilities.map(
-      (f) => Number(f.lat)
-    );
 
-    const lons = regionFacilities.map(
-      (f) => Number(f.lon)
-    );
+    const lats =
+      regionFacilities.map(
+        (f) => Number(f.lat)
+      );
+
+    const lons =
+      regionFacilities.map(
+        (f) => Number(f.lon)
+      );
 
 
     const minLat = Math.min(...lats);
@@ -115,9 +162,9 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
 
 
     /*
-     * Avoid division by zero if a region ever contains
-     * facilities with identical coordinates.
+     * Avoid division by zero.
      */
+
     const latRange =
       maxLat - minLat || 1;
 
@@ -126,34 +173,45 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
 
 
     /*
-     * Normalize geographic coordinates to 0 -> 1.
+     * Normalize geographic coordinates
+     * to 0 -> 1.
      */
+
     const normalizedX =
-      (Number(facility.lon) - minLon) / lonRange;
+      (Number(facility.lon) - minLon) /
+      lonRange;
 
     const normalizedY =
-      (Number(facility.lat) - minLat) / latRange;
+      (Number(facility.lat) - minLat) /
+      latRange;
 
 
     /*
-     * Add padding so markers don't sit directly on
+     * Padding keeps markers away from
      * district boundaries.
      */
+
     const padding = 30;
 
-    const usableMinX = region.minX + padding;
-    const usableMaxX = region.maxX - padding;
+    const usableMinX =
+      region.minX + padding;
 
-    const usableMinY = region.minY + padding;
-    const usableMaxY = region.maxY - padding;
+    const usableMaxX =
+      region.maxX - padding;
+
+    const usableMinY =
+      region.minY + padding;
+
+    const usableMaxY =
+      region.maxY - padding;
 
 
     /*
      * Longitude:
-     *
-     * low longitude  -> left
-     * high longitude -> right
+     * low  -> left
+     * high -> right
      */
+
     const x =
       usableMinX +
       normalizedX *
@@ -162,14 +220,10 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
 
     /*
      * Latitude:
-     *
-     * SVG Y increases downward.
-     *
-     * Therefore:
-     *
-     * high latitude -> UP
-     * low latitude  -> DOWN
+     * high -> UP
+     * low  -> DOWN
      */
+
     const y =
       usableMaxY -
       normalizedY *
@@ -190,9 +244,7 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
    */
 
   const getFacilityColor = (facility) => {
-
     switch (facility.type) {
-
       case "hospital":
         return "#dc2626";
 
@@ -212,14 +264,10 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
    * ============================================================
    * FACILITY SIZE
    * ============================================================
-   *
-   * Large hospitals get slightly larger markers.
    */
 
   const getFacilityRadius = (facility) => {
-
     switch (facility.tier) {
-
       case "large":
         return 12;
 
@@ -237,23 +285,11 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
    * ============================================================
    * REGION RISK
    * ============================================================
-   *
-   * If your regionRisk object contains values such as:
-   *
-   * {
-   *   reg_north: 0.2,
-   *   reg_south: 0.8,
-   *   reg_east: 0.5
-   * }
-   *
-   * we can visually tint the region.
-   *
-   * If the value isn't available, use a neutral opacity.
    */
 
   const getRiskOpacity = (regionId) => {
-
-    const risk = Number(regionRisk?.[regionId]);
+    const risk =
+      Number(regionRisk?.[regionId]);
 
     if (Number.isNaN(risk)) {
       return 0.08;
@@ -262,12 +298,109 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
     /*
      * Clamp between 0 and 1.
      */
+
     const clampedRisk =
       Math.max(0, Math.min(1, risk));
 
-    return 0.08 + clampedRisk * 0.22;
+    return (
+      0.08 +
+      clampedRisk * 0.22
+    );
   };
 
+
+  /*
+   * ============================================================
+   * FACILITY HOVER
+   * ============================================================
+   *
+   * Your API requires:
+   *
+   * getFacilityStatus(
+   *     facilityId,
+   *     medicineId
+   * )
+   *
+   * Therefore we request the status of every medicine
+   * when the user hovers over a facility.
+   */
+
+  const handleFacilityHover = async (facility) => {
+    setHoveredFacility(facility);
+
+    setFacilityStatuses([]);
+
+    setLoadingStatuses(true);
+
+
+    try {
+      const statuses =
+        await Promise.all(
+          medicines.map((medicine) =>
+            getFacilityStatus(
+              facility.id,
+              medicine.id
+            )
+          )
+        );
+
+      /*
+       * Only display the result if the user is
+       * still hovering the same facility.
+       */
+
+      setFacilityStatuses(statuses);
+
+    } catch (error) {
+      console.error(
+        "Failed to load facility statuses:",
+        error
+      );
+
+      setFacilityStatuses([]);
+
+    } finally {
+      setLoadingStatuses(false);
+    }
+  };
+
+
+  /*
+   * ============================================================
+   * FACILITY LEAVE
+   * ============================================================
+   */
+
+  const handleFacilityLeave = () => {
+    setHoveredFacility(null);
+    setFacilityStatuses([]);
+  };
+
+
+  /*
+   * ============================================================
+   * FIND MEDICINE NAME
+   * ============================================================
+   */
+
+  const getMedicineName = (medicineId) => {
+    const medicine =
+      medicines.find(
+        (medicine) =>
+          medicine.id === medicineId
+      );
+
+    return medicine
+      ? medicine.name
+      : medicineId;
+  };
+
+
+  /*
+   * ============================================================
+   * RENDER
+   * ============================================================
+   */
 
   return (
     <div className="map-view card">
@@ -329,6 +462,7 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
               <feMerge>
 
                 <feMergeNode in="blur" />
+
                 <feMergeNode in="SourceGraphic" />
 
               </feMerge>
@@ -539,7 +673,6 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
           ==================================================== */}
 
           <g className="building-layer">
-
 
             {/* ================= NORTH ================= */}
 
@@ -1031,67 +1164,117 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
               const {
                 x,
                 y,
-              } = getFacilityPosition(facility);
+              } = getFacilityPosition(
+                facility
+              );
 
               const color =
-                getFacilityColor(facility);
+                getFacilityColor(
+                  facility
+                );
 
               const radius =
-                getFacilityRadius(facility);
+                getFacilityRadius(
+                  facility
+                );
+
+              const isHovered =
+                hoveredFacility?.id ===
+                facility.id;
 
 
               return (
+
                 <g
                   key={facility.id}
                   className="facility-marker"
+
+                  onMouseEnter={() =>
+                    handleFacilityHover(
+                      facility
+                    )
+                  }
+
+                  onMouseLeave={
+                    handleFacilityLeave
+                  }
                 >
 
-                  {/* Glow */}
+                  {/* ------------------------------------------
+                      Hover glow
+                  ------------------------------------------- */}
 
                   <circle
                     cx={x}
                     cy={y}
-                    r={radius + 5}
+                    r={
+                      isHovered
+                        ? radius + 10
+                        : radius + 5
+                    }
                     fill={color}
-                    opacity={0.15}
+                    opacity={
+                      isHovered
+                        ? 0.28
+                        : 0.15
+                    }
                     filter="url(#facility-glow)"
+                    className="facility-glow"
                   />
 
 
-                  {/* Main marker */}
+                  {/* ------------------------------------------
+                      Main marker
+                  ------------------------------------------- */}
 
                   <circle
                     cx={x}
                     cy={y}
-                    r={radius}
+                    r={
+                      isHovered
+                        ? radius + 2
+                        : radius
+                    }
                     fill={color}
                     stroke="white"
                     strokeWidth={3}
+                    className="facility-dot"
                   />
 
 
-                  {/* Inner dot */}
+                  {/* ------------------------------------------
+                      Inner dot
+                  ------------------------------------------- */}
 
                   <circle
                     cx={x}
                     cy={y}
                     r={3}
                     fill="white"
+                    pointerEvents="none"
                   />
 
 
-                  {/* Facility label */}
+                  {/* ------------------------------------------
+                      Facility name
+                  ------------------------------------------- */}
 
                   <text
                     x={x + radius + 7}
                     y={y + 4}
-                    className="facility-label"
+                    className={
+                      isHovered
+                        ? "facility-label facility-label-active"
+                        : "facility-label"
+                    }
                   >
                     {facility.name}
                   </text>
 
 
-                  {/* Tooltip-ish information */}
+                  {/* ------------------------------------------
+                      Browser tooltip
+                  ------------------------------------------- */}
 
                   <title>
                     {facility.name}
@@ -1107,11 +1290,307 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
                   </title>
 
                 </g>
+
               );
 
             })}
 
           </g>
+
+
+          {/* ====================================================
+              MEDICINE STATUS HOVER CARD
+          ==================================================== */}
+
+          {hoveredFacility && (
+
+            (() => {
+
+              const {
+                x,
+                y,
+              } = getFacilityPosition(
+                hoveredFacility
+              );
+
+
+              /*
+               * Card dimensions in SVG coordinates.
+               */
+
+              const cardWidth = 275;
+              const cardHeight = 330;
+
+
+              /*
+               * Default position:
+               * right of facility.
+               */
+
+              let cardX = x + 25;
+              let cardY = y - 100;
+
+
+              /*
+               * If card would go outside right edge,
+               * move it to the left of the facility.
+               */
+
+              if (
+                cardX + cardWidth > 990
+              ) {
+                cardX =
+                  x -
+                  cardWidth -
+                  25;
+              }
+
+
+              /*
+               * Keep card inside top edge.
+               */
+
+              if (cardY < 10) {
+                cardY = 10;
+              }
+
+
+              /*
+               * Keep card inside bottom edge.
+               */
+
+              if (
+                cardY + cardHeight > 590
+              ) {
+                cardY =
+                  590 -
+                  cardHeight;
+              }
+
+
+              return (
+
+                <foreignObject
+                  x={cardX}
+                  y={cardY}
+                  width={cardWidth}
+                  height={cardHeight}
+                  className="facility-status-foreign-object"
+                  pointerEvents="none"
+                >
+
+                  <div className="facility-status-card">
+
+                    {/* ========================================
+                        CARD HEADER
+                    ========================================= */}
+
+                    <div className="facility-status-header">
+
+                      <div className="facility-status-icon">
+
+                        {hoveredFacility.type ===
+                        "hospital"
+                          ? "H"
+                          : hoveredFacility.type ===
+                            "clinic"
+                          ? "C"
+                          : "P"}
+
+                      </div>
+
+
+                      <div className="facility-status-heading">
+
+                        <div className="facility-status-title">
+
+                          {
+                            hoveredFacility.name
+                          }
+
+                        </div>
+
+                        <div className="facility-status-subtitle">
+
+                          {hoveredFacility.type}
+                          {" • "}
+                          {hoveredFacility.tier}
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* ========================================
+                        DIVIDER
+                    ========================================= */}
+
+                    <div className="facility-status-divider" />
+
+
+                    {/* ========================================
+                        MEDICINES
+                    ========================================= */}
+
+                    <div className="facility-status-list">
+
+                      {loadingStatuses ? (
+
+                        <div className="facility-status-loading">
+
+                          <div className="loading-spinner" />
+
+                          Loading medicine status...
+
+                        </div>
+
+                      ) : facilityStatuses.length ===
+                        0 ? (
+
+                        <div className="facility-status-loading">
+
+                          No status data available.
+
+                        </div>
+
+                      ) : (
+
+                        facilityStatuses.map(
+                          (status) => {
+
+                            const medicineName =
+                              getMedicineName(
+                                status.medicine_id
+                              );
+
+                            const statusColor =
+                              STATUS_COLORS[
+                                status.status
+                              ] ||
+                              "#64748b";
+
+
+                            return (
+
+                              <div
+                                key={
+                                  status.medicine_id
+                                }
+                                className="medicine-status-row"
+                              >
+
+                                <div className="medicine-info">
+
+                                  <div className="medicine-name">
+
+                                    {
+                                      medicineName
+                                    }
+
+                                  </div>
+
+                                </div>
+
+
+                                <div
+                                  className="medicine-status"
+                                  style={{
+                                    color:
+                                      statusColor,
+                                  }}
+                                >
+
+                                  <span
+                                    className="status-dot"
+                                    style={{
+                                      backgroundColor:
+                                        statusColor,
+                                    }}
+                                  />
+
+                                  {
+                                    status.status
+                                  }
+
+                                </div>
+
+                              </div>
+
+                            );
+
+                          }
+                        )
+
+                      )}
+
+                    </div>
+
+
+                    {/* ========================================
+                        STATUS LEGEND
+                    ========================================= */}
+
+                    {!loadingStatuses &&
+                      facilityStatuses.length >
+                        0 && (
+
+                        <div className="status-mini-legend">
+
+                          <span>
+                            <i
+                              style={{
+                                background:
+                                  STATUS_COLORS.healthy,
+                              }}
+                            />
+                            Healthy
+                          </span>
+
+                          <span>
+                            <i
+                              style={{
+                                background:
+                                  STATUS_COLORS.watch,
+                              }}
+                            />
+                            Watch
+                          </span>
+
+                          <span>
+                            <i
+                              style={{
+                                background:
+                                  STATUS_COLORS.critical,
+                              }}
+                            />
+                            Critical
+                          </span>
+
+                          <span>
+                            <i
+                              style={{
+                                background:
+                                  STATUS_COLORS.stockout,
+                              }}
+                            />
+                            Stockout
+                          </span>
+
+                        </div>
+
+                      )}
+
+                  </div>
+
+                </foreignObject>
+
+              );
+
+            })()
+
+          )}
 
 
           {/* ====================================================
@@ -1133,6 +1612,7 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
               opacity={0.92}
               stroke="#cbd5e1"
             />
+
 
             <circle
               cx={20}
@@ -1205,4 +1685,3 @@ export default function MapView({ facilities = [], regionRisk = {} }) {
     </div>
   );
 }
-

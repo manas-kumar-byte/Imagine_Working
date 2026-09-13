@@ -2,12 +2,22 @@ import MapView from "../components/MapView"
 import AlertsFeed from "../components/AlertsFeed"
 import RecommendationPanel from "../components/RecommendationPanel"
 import {getFacilities} from "../api/client";
-const facilities = await(getFacilities());
-console.log(facilities);
+import {getRegionRisk} from "../api/client";
+import { useState, useEffect } from "react";
 
 // Top-level dashboard: MapView + AlertsFeed + RecommendationPanel.
 // Owner: Frontend/Product Lead
 export default function Dashboard() {
+   const [facilities, setFacilities] = useState([]);
+
+    useEffect(() => {
+        async function loadFacilities() {
+            const data = await getFacilities();
+            setFacilities(data);
+        }
+
+        loadFacilities();
+    }, []);
   return (
     <div className="dashboard">
       {/* TODO: compose MapView, AlertsFeed, RecommendationPanel */}
