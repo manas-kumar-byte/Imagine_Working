@@ -19,7 +19,10 @@ def compute_consumption_rate(facility_id: str, medicine_id: str, window_days: in
     consumption = store.get_consumption(facility_id=facility_id, medicine_id=medicine_id, window_days=window_days)
 
     avg_daily_use = consumption["quantity_dispensed"].mean()
-    trend_pct = ((consumption.iloc[-1]["quantity_dispensed"] / consumption.iloc[0]["quantity_dispensed"]) - 1) * 100
+    if not consumption.empty:
+        trend_pct = ((consumption.tail(1)[] / consumption.iloc[0]["quantity_dispensed"]) - 1) * 100
+    else:
+        trend_pct = -1
     # Volatility is simply standard deviation
     volatility = consumption["quantity_dispensed"].std()
 
