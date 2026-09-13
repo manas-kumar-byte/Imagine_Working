@@ -1,124 +1,73 @@
 """
-Orchestration script — runs the whole Module A pipeline and writes CSVs.
+Generate a clean, deterministic Shortage Radar demo dataset.
 
-Run with:
-
+Run from repo root:
     python -m scripts.seed_data
-
-before starting the FastAPI server.
 """
 
-import csv
-import os
 import random
-from dataclasses import asdict, is_dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import pandas as pd  # type: ignore
 
 from backend.data_sim.generate_facilities import generate_facilities
 from backend.data_sim.generate_medicines import generate_medicines
 from backend.data_sim.simulate_consumption import simulate_consumption
 from backend.data_sim.simulate_replenishment import simulate_replenishment
-from backend.models.inventory import InventorySnapshot
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
+# ============================================================
+# CONFIG
+# ============================================================
 
 SEED = 42
+random.seed(SEED)
+
+DATA_DIR = Path("data")
+SIMULATED_DIR = DATA_DIR / "simulated"
 
 N_FACILITIES = 18
 
-SIM_DAYS = 180
-
-OUT_DIR = os.path.join(
-    "data",
-    "simulated",
-)
-
 REGION_CONFIG = {
-    "region_ids": [
-        "reg_north",
-        "reg_south",
-        "reg_east",
-    ],
-    "bounds": {
-        "lat_min": 5.0,
-        "lat_max": 15.0,
-        "lon_min": 30.0,
-        "lon_max": 45.0,
-    },
+    "regions": [
+        {"id": "R01", "name": "Coastal Karnataka", "parent_region_id": None},
+        {"id": "R02", "name": "Central Karnataka", "parent_region_id": None},
+        {"id": "R03", "name": "North Karnataka", "parent_region_id": None},
+    ]
 }
 
 ESSENTIAL_MEDICINES = [
-    "Amoxicillin",
     "Paracetamol",
-    "Oral Rehydration Salts",
+    "Amoxicillin",
+    "Azithromycin",
     "Insulin",
+    "ORS",
+    "Ibuprofen",
+    "Ceftriaxone",
+    "Metformin",
     "Salbutamol",
-    "Ciprofloxacin",
-    "Diazepam",
-    "Folic Acid",
-    "Artesunate",
-    "Oxytocin",
-    "Ringer's Lactate",
-    "Isoniazid",
+    "Aspirin",
+    "Doxycycline",
+    "Hydrocortisone",
 ]
 
-DEFAULT_LEAD_TIME_DIST = {
-    "distribution": "normal",
-    "mean_days": 7,
-    "std_days": 2,
-    "delay_prob": 0.10,
-}
-
-SAFETY_BUFFER_DAYS = 5
-
-MAX_CAPACITY_MULTIPLIER_RANGE = (
-    2.5,
-    4.0,
-)
+START_DATE = datetime.now().date() - timedelta(days=180)
+DAYS = 180
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# ============================================================
+# REGIONS
+# ============================================================
 
-def _base_pattern_params(
-    facility,
-    rng: random.Random,
-) -> dict:
-    """
-    Generate the normal consumption pattern for a facility.
-    """
-
-    tier_multiplier = {
-        "small": 1.0,
-        "medium": 2.5,
-        "large": 6.0,
-    }.get(
-        str(facility.tier).lower(),
-        1.0,
-    )
-
-    return {
-        "base_daily_use": round(
-            rng.uniform(3, 10) * tier_multiplier,
-            1,
-        ),
-        "seasonal_amplitude": round(
-            rng.uniform(0.05, 0.15),
-            2,
-        ),
-        "trend_pct_per_month": round(
-            rng.uniform(-0.005, 0.01),
-            4,
-        ),
-        "shock_events": [],
-        "noise_std": 0.08,
-    }
+def generate_regions():
+    return REGION_CONFIG["regions"]
 
 
-def _compute_inventory_snapshots(
+# ============================================================
+# INVENTORY SNAPSHOTS
+# ============================================================
+
+def compute_inventory_snapshots(
     facility_id,
     medicine_id,
     consumption,
@@ -128,190 +77,258 @@ def _compute_inventory_snapshots(
     max_capacity,
 ):
     """
-    Build daily inventory snapshots.
+    Build one inventory snapshot per day.
 
-    Stock balance:
-
-        stock[t] =
-            stock[t-1]
-            + deliveries[t]
-            - consumption[t]
-
-    Stock is never allowed to become negative.
+    Stock decreases according to consumption and increases
+    when replenishment orders arrive.
     """
 
-    deliveries_by_date: dict[str, float] = {}
+    if consumption is None:
+        consumption = []
 
-    for order in orders:
-        delivery_date = order.actual_delivery_date
+    if orders is None:
+        orders = []
 
-        if not delivery_date:
-            continue
+    consumption_df = pd.DataFrame(
+        [
+            {
+                "date": getattr(x, "date", None),
+                "quantity_dispensed": getattr(
+                    x, "quantity_dispensed", 0
+                ),
+            }
+            for x in consumption
+        ]
+    )
 
-        deliveries_by_date[delivery_date] = (
-            deliveries_by_date.get(
-                delivery_date,
-                0.0,
-            )
-            + float(order.quantity)
-        )
+    orders_df = pd.DataFrame(
+        [
+            {
+                "expected_delivery_date": getattr(
+                    x, "expected_delivery_date", None
+                ),
+                "actual_delivery_date": getattr(
+                    x, "actual_delivery_date", None
+                ),
+                "quantity": getattr(x, "quantity", 0),
+                "status": getattr(x, "status", ""),
+            }
+            for x in orders
+        ]
+    )
 
-    snapshots = []
+    if not consumption_df.empty:
+        consumption_df["date"] = pd.to_datetime(
+            consumption_df["date"]
+        ).dt.date
+
+    if not orders_df.empty:
+        orders_df["expected_delivery_date"] = pd.to_datetime(
+            orders_df["expected_delivery_date"]
+        ).dt.date
+
+        if "actual_delivery_date" in orders_df.columns:
+            orders_df["actual_delivery_date"] = pd.to_datetime(
+                orders_df["actual_delivery_date"],
+                errors="coerce",
+            ).dt.date
 
     stock = float(initial_stock)
+    snapshots = []
 
-    for record in consumption:
-        record_date = str(record.date)
+    for day in range(DAYS):
+        current_date = START_DATE + timedelta(days=day)
 
-        # Add deliveries arriving on this date.
-        stock += deliveries_by_date.get(
-            record_date,
-            0.0,
-        )
+        # ----------------------------------------------------
+        # Consumption
+        # ----------------------------------------------------
+        if not consumption_df.empty:
+            consumed = consumption_df.loc[
+                consumption_df["date"] == current_date,
+                "quantity_dispensed",
+            ].sum()
 
-        # Subtract consumption.
-        stock -= float(
-            record.quantity_dispensed
-        )
+            stock -= float(consumed)
 
-        # Inventory cannot go below zero.
-        stock = max(
-            0.0,
-            stock,
-        )
+        # ----------------------------------------------------
+        # Replenishment
+        # ----------------------------------------------------
+        if not orders_df.empty:
+            for _, order in orders_df.iterrows():
+
+                delivery_date = order["actual_delivery_date"]
+
+                if pd.isna(delivery_date):
+                    delivery_date = order["expected_delivery_date"]
+
+                if delivery_date == current_date:
+                    stock += float(order["quantity"])
+
+        # Keep stock within sensible limits
+        stock = max(0, min(stock, max_capacity))
 
         snapshots.append(
-            InventorySnapshot(
-                facility_id=facility_id,
-                medicine_id=medicine_id,
-                timestamp=record_date,
-                stock_on_hand=round(
-                    stock,
-                    2,
+            {
+                "facility_id": facility_id,
+                "medicine_id": medicine_id,
+                "timestamp": datetime.combine(
+                    current_date,
+                    datetime.min.time(),
                 ),
-                reorder_point=round(
-                    float(reorder_point),
-                    2,
-                ),
-                max_capacity=round(
-                    float(max_capacity),
-                    2,
-                ),
-            )
+                "stock_on_hand": round(stock, 2),
+                "reorder_point": round(reorder_point, 2),
+                "max_capacity": round(max_capacity, 2),
+            }
         )
 
     return snapshots
 
 
-def _generate_regions(
-    region_config: dict,
+# ============================================================
+# DEMO SCENARIOS
+# ============================================================
+
+def force_demo_scenarios(
+    facilities,
+    medicines,
+    inventory_snapshots,
 ):
     """
-    Convert region configuration into the Region model shape.
+    Deliberately create useful demo conditions:
+
+    - critical facility
+    - stockout
+    - surplus facility
+    - another surplus facility
+    - regional shortage
     """
 
-    return [
-        {
-            "id": region_id,
-            "name": (
-                region_id
-                .replace("reg_", "")
-                .replace("_", " ")
-                .title()
-            ),
-            "parent_region_id": "",
-        }
-        for region_id in region_config["region_ids"]
+    if len(facilities) < 4 or len(medicines) < 1:
+        return inventory_snapshots
+
+    facility_ids = [
+        getattr(f, "id", None)
+        for f in facilities
     ]
 
+    medicine_id = getattr(medicines[0], "id", None)
 
-def _write_csv(
-    path: str,
-    rows,
-) -> None:
-    """
-    Write dataclasses or dictionaries to CSV.
-    """
+    if not medicine_id:
+        return inventory_snapshots
 
-    if not rows:
-        print(
-            f"  (skipping {path}, no rows)"
-        )
-        return
+    # --------------------------------------------------------
+    # Pick facilities
+    # --------------------------------------------------------
 
-    if is_dataclass(rows[0]):
-        records = [
-            asdict(row)
-            for row in rows
-        ]
-    else:
-        records = [
-            dict(row)
-            for row in rows
-        ]
+    deficit_facility = facility_ids[0]
+    surplus_facility_1 = facility_ids[1]
+    surplus_facility_2 = facility_ids[2]
+    stockout_facility = facility_ids[3]
 
-    with open(
-        path,
-        "w",
-        newline="",
-        encoding="utf-8",
-    ) as file:
-
-        writer = csv.DictWriter(
-            file,
-            fieldnames=list(
-                records[0].keys()
-            ),
-        )
-
-        writer.writeheader()
-        writer.writerows(records)
-
-    print(
-        f"  wrote {len(records)} rows -> {path}"
+    latest_date = max(
+        x["timestamp"]
+        for x in inventory_snapshots
     )
 
+    # --------------------------------------------------------
+    # Force deficit
+    # --------------------------------------------------------
 
-def _stable_pair_seed(
-    facility_id: str,
-    medicine_id: str,
-) -> int:
-    """
-    Generate a deterministic seed.
+    for row in inventory_snapshots:
 
-    Do NOT use Python's hash() here because hash randomization means
-    hash((facility_id, medicine_id)) can change between processes.
-    """
+        if (
+            row["facility_id"] == deficit_facility
+            and row["medicine_id"] == medicine_id
+            and row["timestamp"] == latest_date
+        ):
+            row["stock_on_hand"] = max(
+                0,
+                row["reorder_point"] * 0.20,
+            )
 
-    value = (
-        f"{SEED}:{facility_id}:{medicine_id}"
-    )
+        # ----------------------------------------------------
+        # Surplus #1
+        # ----------------------------------------------------
 
-    return sum(
-        (index + 1) * ord(char)
-        for index, char in enumerate(value)
-    ) & 0xFFFFFFFF
+        if (
+            row["facility_id"] == surplus_facility_1
+            and row["medicine_id"] == medicine_id
+            and row["timestamp"] == latest_date
+        ):
+            row["stock_on_hand"] = min(
+                row["max_capacity"],
+                row["reorder_point"] * 4,
+            )
+
+        # ----------------------------------------------------
+        # Surplus #2
+        # ----------------------------------------------------
+
+        if (
+            row["facility_id"] == surplus_facility_2
+            and row["medicine_id"] == medicine_id
+            and row["timestamp"] == latest_date
+        ):
+            row["stock_on_hand"] = min(
+                row["max_capacity"],
+                row["reorder_point"] * 3,
+            )
+
+        # ----------------------------------------------------
+        # Stockout
+        # ----------------------------------------------------
+
+        if (
+            row["facility_id"] == stockout_facility
+            and row["medicine_id"] == medicine_id
+            and row["timestamp"] == latest_date
+        ):
+            row["stock_on_hand"] = 0
+
+    return inventory_snapshots
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+# ============================================================
+# MAIN
+# ============================================================
 
-def main() -> None:
+def main():
 
-    os.makedirs(
-        OUT_DIR,
+    print("=" * 60)
+    print("SHORTAGE RADAR - DATA GENERATOR")
+    print("=" * 60)
+
+    SIMULATED_DIR.mkdir(
+        parents=True,
         exist_ok=True,
     )
 
-    print(
-        "[1/4] Generating regions, facilities, and medicines..."
-    )
+    # --------------------------------------------------------
+    # DELETE OLD DATA
+    # --------------------------------------------------------
 
-    # Generate regions once.
-    regions = _generate_regions(
-        REGION_CONFIG
-    )
+    print("\n[1/7] Removing old generated CSV files...")
+
+    for csv_file in SIMULATED_DIR.glob("*.csv"):
+        csv_file.unlink()
+
+    print("      Old data removed.")
+
+    # --------------------------------------------------------
+    # REGIONS
+    # --------------------------------------------------------
+
+    print("\n[2/7] Generating regions...")
+
+    regions = generate_regions()
+
+    print(f"      Regions: {len(regions)}")
+
+    # --------------------------------------------------------
+    # FACILITIES
+    # --------------------------------------------------------
+
+    print("\n[3/7] Generating facilities...")
 
     facilities = generate_facilities(
         N_FACILITIES,
@@ -319,386 +336,349 @@ def main() -> None:
         seed=SEED,
     )
 
+    print(f"      Facilities: {len(facilities)}")
+
+    # --------------------------------------------------------
+    # MEDICINES
+    # --------------------------------------------------------
+
+    print("\n[4/7] Generating medicines...")
+
     medicines = generate_medicines(
         ESSENTIAL_MEDICINES
     )
 
-    print(
-        f"  {len(regions)} regions, "
-        f"{len(facilities)} facilities, "
-        f"{len(medicines)} medicines"
-    )
+    print(f"      Medicines: {len(medicines)}")
 
-    # ------------------------------------------------------------------
-    # Select explicit demo scenarios.
-    # ------------------------------------------------------------------
+    # --------------------------------------------------------
+    # SIMULATE CONSUMPTION + REPLENISHMENT
+    # --------------------------------------------------------
 
-    facilities_by_region: dict[str, list] = {}
+    print("\n[5/7] Generating consumption and replenishment...")
 
-    for facility in facilities:
-        facilities_by_region.setdefault(
-            str(facility.region_id),
-            [],
-        ).append(facility)
+    consumption_records = []
+    replenishment_orders = []
+    inventory_snapshots = []
 
-    region_ids = list(
-        REGION_CONFIG["region_ids"]
-    )
-
-    scenario_region = region_ids[0]
-
-    scenario_facilities = (
-        facilities_by_region
-        .get(scenario_region, [])[:3]
-    )
-
-    scenario_medicine = medicines[0]
-
-    shock_region = region_ids[1]
-
-    shock_facilities = (
-        facilities_by_region
-        .get(shock_region, [])[:2]
-    )
-
-    shock_medicine = medicines[4]
-
-    delay_region = region_ids[2]
-
-    delay_facilities = (
-        facilities_by_region
-        .get(delay_region, [])
-    )
-
-    if not delay_facilities:
-        raise RuntimeError(
-            f"No facilities generated for {delay_region}"
-        )
-
-    delay_facility = delay_facilities[0]
-
-    delay_medicine = medicines[3]
-
-    scenario_pairs = {
-        (
-            str(facility.id),
-            str(scenario_medicine.id),
-        )
-        for facility in scenario_facilities
-    }
-
-    shock_pairs = {
-        (
-            str(facility.id),
-            str(shock_medicine.id),
-        )
-        for facility in shock_facilities
-    }
-
-    delay_pair = (
-        str(delay_facility.id),
-        str(delay_medicine.id),
-    )
-
-    print(
-        "[2/4] Injecting 3 demo scenarios:"
-    )
-
-    print(
-        f"  (a) slow-building regional shortage: "
-        f"region={scenario_region}, "
-        f"medicine={scenario_medicine.name}, "
-        f"facilities="
-        f"{[f.id for f in scenario_facilities]}"
-    )
-
-    print(
-        f"  (b) sudden-shock outbreak shortage: "
-        f"region={shock_region}, "
-        f"medicine={shock_medicine.name}, "
-        f"facilities="
-        f"{[f.id for f in shock_facilities]}"
-    )
-
-    print(
-        f"  (c) pure supply-side delay: "
-        f"facility={delay_facility.id}, "
-        f"medicine={delay_medicine.name}"
-    )
-
-    # ------------------------------------------------------------------
-    # Generate all facility × medicine data.
-    # ------------------------------------------------------------------
-
-    print(
-        "[3/4] Simulating consumption + replenishment "
-        "for every facility x medicine pair..."
-    )
-
-    all_consumption = []
-    all_orders = []
-    all_snapshots = []
-
-    simulation_start_date = (
-        datetime.now(
-            tz=timezone.utc
-        ).date()
-        - timedelta(days=SIM_DAYS)
-    )
+    pair_number = 0
 
     for facility in facilities:
+
+        facility_id = facility.id
 
         for medicine in medicines:
 
-            pair = (
-                str(facility.id),
-                str(medicine.id),
+            medicine_id = medicine.id
+
+            pair_number += 1
+
+            # Stable deterministic seed
+            pair_seed = (
+                SEED
+                + pair_number * 1009
             )
 
-            pair_seed = _stable_pair_seed(
-                pair[0],
-                pair[1],
+            rng = random.Random(pair_seed)
+
+            # ------------------------------------------------
+            # Initial stock
+            # ------------------------------------------------
+
+            avg_daily_use = rng.uniform(
+                10,
+                45,
             )
 
-            pair_rng = random.Random(
-                pair_seed
+            initial_stock = round(
+                avg_daily_use
+                * rng.uniform(10, 25),
+                2,
             )
 
-            lead_time_dist = dict(
-                DEFAULT_LEAD_TIME_DIST
+            reorder_point = round(
+                avg_daily_use * rng.uniform(5, 9),
+                2,
             )
 
-            # ----------------------------------------------------------
-            # Scenario A:
-            # Slow-building regional shortage.
-            # ----------------------------------------------------------
+            max_capacity = round(
+                avg_daily_use * rng.uniform(25, 45),
+                2,
+            )
 
-            if pair in scenario_pairs:
+            # ------------------------------------------------
+            # Consumption
+            # ------------------------------------------------
 
-                pattern_params = (
-                    _base_pattern_params(
-                        facility,
-                        pair_rng,
-                    )
-                )
-
-                pattern_params[
-                    "trend_pct_per_month"
-                ] = 0.12
-
-                pattern_params[
-                    "seasonal_amplitude"
-                ] = 0.10
-
-            # ----------------------------------------------------------
-            # Scenario B:
-            # Sudden demand shock.
-            # ----------------------------------------------------------
-
-            elif pair in shock_pairs:
-
-                pattern_params = (
-                    _base_pattern_params(
-                        facility,
-                        pair_rng,
-                    )
-                )
-
-                pattern_params[
-                    "shock_events"
-                ] = [
-                    {
-                        "start_day": 90,
-                        "duration_days": 21,
-                        "multiplier": 3.5,
-                    }
-                ]
-
-            # ----------------------------------------------------------
-            # Scenario C:
-            # Supply-side delay.
-            # ----------------------------------------------------------
-
-            elif pair == delay_pair:
-
-                pattern_params = (
-                    _base_pattern_params(
-                        facility,
-                        pair_rng,
-                    )
-                )
-
-                pattern_params[
-                    "trend_pct_per_month"
-                ] = 0.0
-
-                pattern_params[
-                    "seasonal_amplitude"
-                ] = 0.05
-
-                lead_time_dist[
-                    "delay_prob"
-                ] = 0.85
-
-                lead_time_dist[
-                    "mean_days"
-                ] = 10
-
-            # ----------------------------------------------------------
-            # Normal pair.
-            # ----------------------------------------------------------
-
-            else:
-
-                pattern_params = (
-                    _base_pattern_params(
-                        facility,
-                        pair_rng,
-                    )
-                )
-
-            # ----------------------------------------------------------
-            # Consumption.
-            # ----------------------------------------------------------
+            pattern_params = {
+                "avg_daily_use": avg_daily_use,
+                "trend": rng.uniform(
+                    -0.02,
+                    0.03,
+                ),
+                "volatility": rng.uniform(
+                    0.05,
+                    0.20,
+                ),
+            }
 
             consumption = simulate_consumption(
-                facility.id,
-                medicine.id,
-                SIM_DAYS,
+                facility_id,
+                medicine_id,
+                DAYS,
                 pattern_params,
-                start_date=simulation_start_date,
+                start_date=START_DATE,
                 seed=pair_seed,
             )
 
-            # ----------------------------------------------------------
-            # Replenishment.
-            # ----------------------------------------------------------
-
-            avg_daily_use = float(
-                pattern_params["base_daily_use"]
-            )
-
-            orders = simulate_replenishment(
-                facility.id,
-                medicine.id,
-                SIM_DAYS,
-                lead_time_dist,
-                avg_daily_use=avg_daily_use,
-                start_date=simulation_start_date,
-                seed=pair_seed + 1,
-            )
-
-            # ----------------------------------------------------------
-            # Inventory thresholds.
-            # ----------------------------------------------------------
-
-            reorder_point = (
-                avg_daily_use
-                * (
-                    float(lead_time_dist.get("mean_days", 7.0) or 7.0) # type: ignore
-                    + SAFETY_BUFFER_DAYS
-                )
-            )
-
-            max_capacity = (
-                reorder_point
-                * pair_rng.uniform(
-                    *MAX_CAPACITY_MULTIPLIER_RANGE
-                )
-            )
-
-            # Start with approximately two weeks of stock.
-            initial_stock = (
-                avg_daily_use * 14
-            )
-
-            snapshots = (
-                _compute_inventory_snapshots(
-                    facility.id,
-                    medicine.id,
-                    consumption,
-                    orders,
-                    initial_stock,
-                    reorder_point,
-                    max_capacity,
-                )
-            )
-
-            all_consumption.extend(
+            consumption_records.extend(
                 consumption
             )
 
-            all_orders.extend(
+            # ------------------------------------------------
+            # Replenishment
+            # ------------------------------------------------
+
+            lead_time_dist = {
+                "mean": rng.uniform(5, 15),
+                "std": rng.uniform(1, 4),
+            }
+
+            orders = simulate_replenishment(
+                facility_id,
+                medicine_id,
+                DAYS,
+                lead_time_dist,
+                reorder_cycle_days=21,
+                order_qty_range=(
+                    int(avg_daily_use * 15),
+                    int(avg_daily_use * 30),
+                ),
+                avg_daily_use=avg_daily_use,
+                start_date=START_DATE,
+                seed=pair_seed,
+            )
+
+            replenishment_orders.extend(
                 orders
             )
 
-            all_snapshots.extend(
+            # ------------------------------------------------
+            # Inventory
+            # ------------------------------------------------
+
+            snapshots = compute_inventory_snapshots(
+                facility_id,
+                medicine_id,
+                consumption,
+                orders,
+                initial_stock,
+                reorder_point,
+                max_capacity,
+            )
+
+            inventory_snapshots.extend(
                 snapshots
             )
 
     print(
-        f"  {len(all_consumption)} consumption records, "
-        f"{len(all_orders)} orders, "
-        f"{len(all_snapshots)} snapshots"
+        f"      Consumption records: "
+        f"{len(consumption_records)}"
     )
-
-    # ------------------------------------------------------------------
-    # Write output.
-    # ------------------------------------------------------------------
 
     print(
-        f"[4/4] Writing CSVs to {OUT_DIR}/ ..."
+        f"      Replenishment orders: "
+        f"{len(replenishment_orders)}"
     )
 
-    _write_csv(
-        os.path.join(
-            OUT_DIR,
-            "regions.csv",
-        ),
-        regions,
+    print(
+        f"      Inventory snapshots: "
+        f"{len(inventory_snapshots)}"
     )
 
-    _write_csv(
-        os.path.join(
-            OUT_DIR,
-            "facilities.csv",
-        ),
+    # --------------------------------------------------------
+    # FORCE DEMO CONDITIONS
+    # --------------------------------------------------------
+
+    print("\n[6/7] Creating demo shortage/recommendation scenarios...")
+
+    inventory_snapshots = force_demo_scenarios(
         facilities,
-    )
-
-    _write_csv(
-        os.path.join(
-            OUT_DIR,
-            "medicines.csv",
-        ),
         medicines,
+        inventory_snapshots,
     )
 
-    _write_csv(
-        os.path.join(
-            OUT_DIR,
-            "inventory_snapshots.csv",
-        ),
-        all_snapshots,
+    # --------------------------------------------------------
+    # DATAFRAMES
+    # --------------------------------------------------------
+
+    facilities_df = pd.DataFrame(
+        [
+            {
+                "id": f.id,
+                "name": f.name,
+                "lat": f.lat,
+                "lon": f.lon,
+                "region_id": f.region_id,
+                "type": f.type,
+                "tier": f.tier,
+                "population_served": f.population_served,
+            }
+            for f in facilities
+        ]
     )
 
-    _write_csv(
-        os.path.join(
-            OUT_DIR,
-            "consumption.csv",
-        ),
-        all_consumption,
+    medicines_df = pd.DataFrame(
+        [
+            {
+                "id": m.id,
+                "name": m.name,
+                "category": m.category,
+                "unit": m.unit,
+                "essential_flag": m.essential_flag,
+                "substitute_ids": ",".join(
+                    m.substitute_ids
+                    if m.substitute_ids
+                    else []
+                ),
+            }
+            for m in medicines
+        ]
     )
 
-    _write_csv(
-        os.path.join(
-            OUT_DIR,
-            "replenishment_orders.csv",
-        ),
-        all_orders,
+    regions_df = pd.DataFrame(
+        regions
     )
 
-    print("Done.")
+    consumption_df = pd.DataFrame(
+        [
+            {
+                "facility_id": x.facility_id,
+                "medicine_id": x.medicine_id,
+                "date": x.date,
+                "quantity_dispensed": x.quantity_dispensed,
+            }
+            for x in consumption_records
+        ]
+    )
+
+    replenishment_df = pd.DataFrame(
+        [
+            {
+                "id": x.id,
+                "facility_id": x.facility_id,
+                "medicine_id": x.medicine_id,
+                "order_date": x.order_date,
+                "expected_delivery_date": x.expected_delivery_date,
+                "actual_delivery_date": x.actual_delivery_date,
+                "quantity": x.quantity,
+                "status": x.status,
+            }
+            for x in replenishment_orders
+        ]
+    )
+
+    inventory_df = pd.DataFrame(
+        inventory_snapshots
+    )
+
+    # --------------------------------------------------------
+    # REMOVE DUPLICATES
+    # --------------------------------------------------------
+
+    facilities_df = facilities_df.drop_duplicates(
+        subset=["id"]
+    )
+
+    medicines_df = medicines_df.drop_duplicates(
+        subset=["id"]
+    )
+
+    regions_df = regions_df.drop_duplicates(
+        subset=["id"]
+    )
+
+    consumption_df = consumption_df.drop_duplicates(
+        subset=[
+            "facility_id",
+            "medicine_id",
+            "date",
+        ]
+    )
+
+    replenishment_df = replenishment_df.drop_duplicates(
+        subset=["id"]
+    )
+
+    inventory_df = inventory_df.drop_duplicates(
+        subset=[
+            "facility_id",
+            "medicine_id",
+            "timestamp",
+        ]
+    )
+
+    # --------------------------------------------------------
+    # WRITE CSVs
+    # --------------------------------------------------------
+
+    print("\n[7/7] Writing clean CSV files...")
+
+    facilities_df.to_csv(
+        SIMULATED_DIR / "facilities.csv",
+        index=False,
+    )
+
+    medicines_df.to_csv(
+        SIMULATED_DIR / "medicines.csv",
+        index=False,
+    )
+
+    regions_df.to_csv(
+        SIMULATED_DIR / "regions.csv",
+        index=False,
+    )
+
+    consumption_df.to_csv(
+        SIMULATED_DIR / "consumption.csv",
+        index=False,
+    )
+
+    replenishment_df.to_csv(
+        SIMULATED_DIR / "replenishment_orders.csv",
+        index=False,
+    )
+
+    inventory_df.to_csv(
+        SIMULATED_DIR / "inventory_snapshots.csv",
+        index=False,
+    )
+
+    # --------------------------------------------------------
+    # SUMMARY
+    # --------------------------------------------------------
+
+    print("\n" + "=" * 60)
+    print("DATA GENERATION COMPLETE")
+    print("=" * 60)
+
+    print(f"Facilities              : {len(facilities_df)}")
+    print(f"Medicines               : {len(medicines_df)}")
+    print(f"Regions                 : {len(regions_df)}")
+    print(f"Consumption records     : {len(consumption_df)}")
+    print(f"Replenishment orders    : {len(replenishment_df)}")
+    print(f"Inventory snapshots     : {len(inventory_df)}")
+
+    print("\nFiles written to:")
+    print(SIMULATED_DIR.resolve())
+
+    print("\nDemo scenarios:")
+    print("  ✓ Critical facility")
+    print("  ✓ Stockout facility")
+    print("  ✓ Surplus facility")
+    print("  ✓ Redistribution opportunity")
+    print("  ✓ Regional shortage conditions")
+
+    print("\nDone!")
 
 
 if __name__ == "__main__":
