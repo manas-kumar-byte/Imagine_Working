@@ -207,22 +207,27 @@ def force_demo_scenarios(
     inventory_snapshots,
 ):
     """
-    Force useful recommendation scenarios for EVERY medicine.
+    Create guaranteed recommendation scenarios.
 
-    For every medicine:
-      fac_0000 -> deficit
-      fac_0001 -> large surplus
-      fac_0002 -> large surplus
-      fac_0003 -> stockout
+    For EVERY medicine:
+
+        fac_0000 -> DEFICIT
+        fac_0003 -> SURPLUS
+        fac_0006 -> SURPLUS
+        fac_0009 -> STOCKOUT
+
+    These facilities are all in the same region because
+    generate_facilities assigns regions cyclically.
     """
 
-    if len(facilities) < 4 or not medicines:
+    if len(facilities) < 10 or not medicines:
         return inventory_snapshots
 
+    # Same region as fac_0000
     deficit_facility = facilities[0].id
-    surplus_facility_1 = facilities[1].id
-    surplus_facility_2 = facilities[2].id
-    stockout_facility = facilities[3].id
+    surplus_facility_1 = facilities[3].id
+    surplus_facility_2 = facilities[6].id
+    stockout_facility = facilities[9].id
 
     latest_date = max(
         row["timestamp"]
@@ -235,54 +240,57 @@ def force_demo_scenarios(
 
         for row in inventory_snapshots:
 
-            if (
-                row["medicine_id"] != medicine_id
-                or row["timestamp"] != latest_date
-            ):
+            if row["medicine_id"] != medicine_id:
+                continue
+
+            if row["timestamp"] != latest_date:
                 continue
 
             reorder = float(row["reorder_point"])
             capacity = float(row["max_capacity"])
 
-            # ------------------------------------------------
-            # DEFICIT FACILITY
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # DEFICIT
+            # -----------------------------------------------
 
             if row["facility_id"] == deficit_facility:
+
                 row["stock_on_hand"] = max(
                     0,
-                    reorder * 0.20,
+                    reorder * 0.10
                 )
 
-            # ------------------------------------------------
-            # SURPLUS FACILITY 1
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # SURPLUS 1
+            # -----------------------------------------------
 
             elif row["facility_id"] == surplus_facility_1:
+
                 row["stock_on_hand"] = min(
                     capacity,
-                    reorder * 4,
+                    reorder * 5
                 )
 
-            # ------------------------------------------------
-            # SURPLUS FACILITY 2
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # SURPLUS 2
+            # -----------------------------------------------
 
             elif row["facility_id"] == surplus_facility_2:
+
                 row["stock_on_hand"] = min(
                     capacity,
-                    reorder * 3,
+                    reorder * 4
                 )
 
-            # ------------------------------------------------
-            # STOCKOUT FACILITY
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # STOCKOUT
+            # -----------------------------------------------
 
             elif row["facility_id"] == stockout_facility:
+
                 row["stock_on_hand"] = 0
 
     return inventory_snapshots
-
 
 # ============================================================
 # MAIN
