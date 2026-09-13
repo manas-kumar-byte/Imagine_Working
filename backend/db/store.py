@@ -124,6 +124,7 @@ def get_replenishment_orders(choice: int = 2, facility_id: str | None = None, me
 
     return replenishment
 
+# Require a way to set stockout details so I can write new risk_score into the csv
 def get_stockout_details(choice: int = 2) -> pd.DataFrame:
     files = [RAW_DIR,SAMPLE_DIR,SIMULATED_DIR]
 
@@ -133,5 +134,3 @@ def get_stockout_details(choice: int = 2) -> pd.DataFrame:
         raise ValueError("Input must be 1 2 or 3")
 
     return stockout
-# Polo Venat here again
-# I will be assuming that get_stockout_details() returns a 
