@@ -79,7 +79,6 @@ export default function Dashboard() {
               }, [facilities, medicines]);
   const sortedRecommendations = [...recommendations]
   .sort((a, b) => b.urgency_score - a.urgency_score);
-    console.log(recommendations);
   return (
     <div className="dashboard">
       {/* TODO: compose MapView, AlertsFeed, RecommendationPanel */}
