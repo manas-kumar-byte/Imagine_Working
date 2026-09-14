@@ -1,11 +1,13 @@
 // Ranked redistribution suggestions with one-line rationale (explain_recommendation).
 // Owner: Frontend/Product Lead
 
-export default function RecommendationPanel({ recommendations, rec_loaded }) {
+export default function RecommendationPanel({ recommendations, rec_loaded, from }) {
 
   return (
     <div className="recommendation-panel card">
-      <h2 className="heading-text">Recommendation Panel</h2>
+      {from === "Dashboard"? (<h2 className="heading-text">Recommendation Panel</h2>):(
+        <empty></empty>
+      )}
       
 
       {rec_loaded===true? (recommendations.length === 0 ? (

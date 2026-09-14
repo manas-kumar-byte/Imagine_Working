@@ -62,7 +62,9 @@ export default function FacilityPage() {
       {/* TODO: render FacilityDetail + RecommendationPanel for this facility */}
       <div className="facility-details card">
           <h3 className="heading-text">Facility Details</h3>
+          <div className="details card">
           {medicines.map(facility_detail)}
+          </div>
       </div>
       <div className="recommendation-panel card">
         <h3 className="heading-text">Recommendation Panel</h3>

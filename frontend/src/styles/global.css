@@ -83,7 +83,10 @@
   width: 45%;
 	height: 100vh;
   border-radius: 20px;
-  overflow: scroll;
+}
+.details{
+    overflow: scroll;
+    width: 100%;
 }
 .facility-page{
   display: flex;

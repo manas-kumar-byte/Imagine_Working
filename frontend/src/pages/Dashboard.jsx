@@ -85,7 +85,7 @@ export default function Dashboard() {
       <MapView facilities={facilities}/>
       <div className="alert-n-recommendation">
           <AlertsFeed alerts={alerts}/>
-          <RecommendationPanel recommendations={sortedRecommendations} rec_loaded={rec_loaded}/>
+          <RecommendationPanel recommendations={sortedRecommendations} rec_loaded={rec_loaded} from="Dashboard"/>
       
       </div>
     </div>
