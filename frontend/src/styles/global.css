@@ -39,7 +39,7 @@
 .alerts-feed {
   display: flex;
   flex-flow: column;
-  justify-content: center;
+  align-content: center;
   margin: 5%;
   width: 45%;
 	height: 100vh;
@@ -89,6 +89,7 @@
   display: flex;
   flex-flow: row;
   justify-content: space-between;
+  width: 100vw;
 }
 .medical-city-map {
   width: 100%;

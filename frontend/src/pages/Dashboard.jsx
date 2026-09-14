@@ -13,6 +13,7 @@ export default function Dashboard() {
    const [recommendations, setRecomendations] = useState([]);
    const [medicines, setMedicines] = useState([]);
    const [alerts, setAlerts] = useState([]);
+   const [rec_loaded, setRecLoaded] = useState(false);
      useEffect(() => {
        async function loadAlerts() {
          try{
@@ -65,12 +66,14 @@ export default function Dashboard() {
                     const results = await Promise.all(requests); 
                     const data = results.flat(); 
                     setRecomendations(data); 
+                    setRecLoaded(true);
                   } 
                   catch (error) { 
                     console.error( "Failed to load recommendations:", error ); 
                   } 
                 } 
                 loadRecommendations(); 
+                
               }, [facilities, medicines]);
   const sortedRecommendations = [...recommendations]
   .sort((a, b) => b.urgency_score - a.urgency_score);
@@ -82,7 +85,7 @@ export default function Dashboard() {
       <MapView facilities={facilities}/>
       <div className="alert-n-recommendation">
           <AlertsFeed alerts={alerts}/>
-          <RecommendationPanel recommendations={sortedRecommendations}/>
+          <RecommendationPanel recommendations={sortedRecommendations} rec_loaded={rec_loaded}/>
       
       </div>
     </div>

@@ -1,15 +1,15 @@
 // Ranked redistribution suggestions with one-line rationale (explain_recommendation).
 // Owner: Frontend/Product Lead
 
-export default function RecommendationPanel({ recommendations }) {
+export default function RecommendationPanel({ recommendations, rec_loaded }) {
 
   return (
     <div className="recommendation-panel card">
       <h2 className="heading-text">Recommendation Panel</h2>
       
 
-      {recommendations.length === 0 ? (
-        <p>Loading...</p>
+      {rec_loaded===true? (recommendations.length === 0 ? (
+        <p>No recommendations</p>
       ) : (
         <div className="recommendation-list">
           {recommendations.map((recommendation, index) => (
@@ -39,6 +39,8 @@ export default function RecommendationPanel({ recommendations }) {
           ))}
 
         </div>
+      )):(
+        <p>Loading...</p>
       )}
 
     </div>

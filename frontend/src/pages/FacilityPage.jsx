@@ -19,7 +19,7 @@ export default function FacilityPage() {
   const { id } = useParams()
   const [medicines, setMedicines] = useState([]);
   const [recommendation, setRecommendations] = useState([]);
-  
+  const [rec_loaded, setRecLoaded] = useState(false);
   useEffect(() => 
     { 
       if (medicines.length === 0) { 
@@ -34,6 +34,7 @@ export default function FacilityPage() {
           const results = await Promise.all(requests);
           const data = results.flat(); 
           setRecommendations(data); 
+          setRecLoaded(true);
         } 
         catch (error) { 
           console.error( "Failed to load recommendations:", error ); 
@@ -65,7 +66,7 @@ export default function FacilityPage() {
       </div>
       <div className="recommendation-panel card">
         <h3 className="heading-text">Recommendation Panel</h3>
-        <RecommendationPanel recommendations={recommendation}/>
+        <RecommendationPanel recommendations={recommendation} rec_loaded={rec_loaded}/>
       </div>
     </div>
   );
