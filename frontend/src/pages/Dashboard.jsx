@@ -20,7 +20,7 @@ export default function Dashboard() {
          try{
            const data = await getAlerts();
            setAlerts(data);
-           setAlerts(true);
+           setAlertLoaded(true);
          }
          catch(error) {
            console.error("Failed to load alerts: ", error);

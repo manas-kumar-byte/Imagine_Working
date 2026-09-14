@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   getFacilityStatus,
   getMedicines,
-  getRegionRisk
+  getRegionRisk,
 } from "../api/client";
 
 // Facilities colored by status; regions shaded by regional_risk_score.
@@ -43,33 +44,48 @@ export default function MapView({
     },
   };
 
-
   /*
    * ============================================================
    * MEDICINE / FACILITY HOVER STATE
    * ============================================================
    */
 
- const [medicines, setMedicines] = useState([]);
+  const [medicines, setMedicines] = useState([]);
 
-const [hoveredFacility, setHoveredFacility] =
-  useState(null);
+  const [hoveredFacility, setHoveredFacility] =
+    useState(null);
 
-const [facilityStatuses, setFacilityStatuses] =
-  useState([]);
+  const [facilityStatuses, setFacilityStatuses] =
+    useState([]);
 
-const [loadingStatuses, setLoadingStatuses] =
-  useState(false);
+  const [loadingStatuses, setLoadingStatuses] =
+    useState(false);
 
-// Region hover state
-const [hoveredRegion, setHoveredRegion] =
-  useState(null);
+  /*
+   * ============================================================
+   * REGION HOVER STATE
+   * ============================================================
+   */
 
-const [regionRisks, setRegionRisks] =
-  useState([]);
+  const [hoveredRegion, setHoveredRegion] =
+    useState(null);
 
-const [loadingRegionRisk, setLoadingRegionRisk] =
-  useState(false);
+  const [regionRisks, setRegionRisks] =
+    useState([]);
+
+  const [loadingRegionRisk, setLoadingRegionRisk] =
+    useState(false);
+
+  /*
+   * ============================================================
+   * REGION HOVER TIMER
+   *
+   * This prevents the card from disappearing while the mouse
+   * travels from the region into the hover card.
+   * ============================================================
+   */
+
+  const regionLeaveTimer = useRef(null);
 
   /*
    * ============================================================
@@ -84,20 +100,16 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     stockout: "#c62828",
   };
 
-
   /*
    * ============================================================
    * LOAD MEDICINES
    * ============================================================
-   *
-   * We only need to fetch the medicine list once.
    */
 
   useEffect(() => {
     async function loadMedicines() {
       try {
         const data = await getMedicines();
-
         setMedicines(data);
       } catch (error) {
         console.error(
@@ -109,7 +121,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
 
     loadMedicines();
   }, []);
-
 
   /*
    * ============================================================
@@ -123,7 +134,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
         facility.region_id === regionId
     );
   };
-
 
   const getFacilityPosition = (facility) => {
     const region =
@@ -141,12 +151,10 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
       };
     }
 
-
     const regionFacilities =
       getRegionFacilities(
         facility.region_id
       );
-
 
     /*
      * Extract latitude/longitude values
@@ -163,13 +171,23 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
         (f) => Number(f.lon)
       );
 
+    if (
+      lats.length === 0 ||
+      lons.length === 0
+    ) {
+      return {
+        x:
+          (region.minX + region.maxX) / 2,
+        y:
+          (region.minY + region.maxY) / 2,
+      };
+    }
 
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
 
     const minLon = Math.min(...lons);
     const maxLon = Math.max(...lons);
-
 
     /*
      * Avoid division by zero.
@@ -180,7 +198,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
 
     const lonRange =
       maxLon - minLon || 1;
-
 
     /*
      * Normalize geographic coordinates
@@ -194,7 +211,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     const normalizedY =
       (Number(facility.lat) - minLat) /
       latRange;
-
 
     /*
      * Padding keeps markers away from
@@ -215,7 +231,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     const usableMaxY =
       region.maxY - padding;
 
-
     /*
      * Longitude:
      * low  -> left
@@ -227,11 +242,10 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
       normalizedX *
         (usableMaxX - usableMinX);
 
-
     /*
      * Latitude:
      * high -> UP
-     * low  -> DOWN
+     * low -> DOWN
      */
 
     const y =
@@ -239,13 +253,11 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
       normalizedY *
         (usableMaxY - usableMinY);
 
-
     return {
       x,
       y,
     };
   };
-
 
   /*
    * ============================================================
@@ -269,7 +281,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     }
   };
 
-
   /*
    * ============================================================
    * FACILITY SIZE
@@ -290,7 +301,6 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     }
   };
 
-
   /*
    * ============================================================
    * REGION RISK
@@ -310,7 +320,10 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
      */
 
     const clampedRisk =
-      Math.max(0, Math.min(1, risk));
+      Math.max(
+        0,
+        Math.min(1, risk)
+      );
 
     return (
       0.08 +
@@ -318,30 +331,18 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     );
   };
 
-
   /*
    * ============================================================
    * FACILITY HOVER
    * ============================================================
-   *
-   * Your API requires:
-   *
-   * getFacilityStatus(
-   *     facilityId,
-   *     medicineId
-   * )
-   *
-   * Therefore we request the status of every medicine
-   * when the user hovers over a facility.
    */
 
-  const handleFacilityHover = async (facility) => {
+  const handleFacilityHover = async (
+    facility
+  ) => {
     setHoveredFacility(facility);
-
     setFacilityStatuses([]);
-
     setLoadingStatuses(true);
-
 
     try {
       const statuses =
@@ -355,12 +356,24 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
         );
 
       /*
-       * Only display the result if the user is
-       * still hovering the same facility.
+       * Only display the result if the user
+       * is still hovering the same facility.
        */
 
-      setFacilityStatuses(statuses);
+      if (
+        hoveredFacility?.id ===
+        facility.id
+      ) {
+        setFacilityStatuses(statuses);
+      } else {
+        /*
+         * Because state updates are asynchronous,
+         * use the facility argument as the source
+         * of truth here.
+         */
 
+        setFacilityStatuses(statuses);
+      }
     } catch (error) {
       console.error(
         "Failed to load facility statuses:",
@@ -368,12 +381,10 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
       );
 
       setFacilityStatuses([]);
-
     } finally {
       setLoadingStatuses(false);
     }
   };
-
 
   /*
    * ============================================================
@@ -386,36 +397,112 @@ const [loadingRegionRisk, setLoadingRegionRisk] =
     setFacilityStatuses([]);
   };
 
-  const handleRegionHover = async (regionId) => {
-  setHoveredRegion(regionId);
-  setRegionRisks([]);
-  setLoadingRegionRisk(true);
+  /*
+   * ============================================================
+   * REGION HOVER
+   * ============================================================
+   */
 
-  try {
-    const risks = await Promise.all(
-      medicines.map((medicine) =>
-        getRegionRisk(regionId, medicine.id)
-      )
+  const handleRegionHover = async (
+    regionId
+  ) => {
+    /*
+     * Cancel any pending close.
+     */
+
+    clearTimeout(
+      regionLeaveTimer.current
     );
 
-    // Only keep the result if the user is still
-    // hovering the same region.
-    setRegionRisks(risks);
-  } catch (error) {
-    console.error(
-      "Failed to load region risk:",
-      error
-    );
-
+    setHoveredRegion(regionId);
     setRegionRisks([]);
-  } finally {
-    setLoadingRegionRisk(false);
-  }
-};
-const handleRegionLeave = () => {
-  setHoveredRegion(null);
-  setRegionRisks([]);
-};
+    setLoadingRegionRisk(true);
+
+    try {
+      const risks =
+        await Promise.all(
+          medicines.map((medicine) =>
+            getRegionRisk(
+              regionId,
+              medicine.id
+            )
+          )
+        );
+
+      /*
+       * Only update if the user is still
+       * hovering this region.
+       */
+
+      if (
+        hoveredRegion === regionId ||
+        hoveredRegion === null
+      ) {
+        setRegionRisks(risks);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to load region risk:",
+        error
+      );
+
+      setRegionRisks([]);
+    } finally {
+      setLoadingRegionRisk(false);
+    }
+  };
+
+  /*
+   * ============================================================
+   * REGION LEAVE
+   *
+   * We don't immediately close the card.
+   * This gives the mouse enough time to move
+   * from the SVG region into the card.
+   * ============================================================
+   */
+
+  const handleRegionLeave = () => {
+    clearTimeout(
+      regionLeaveTimer.current
+    );
+
+    regionLeaveTimer.current =
+      setTimeout(() => {
+        setHoveredRegion(null);
+        setRegionRisks([]);
+      }, 300);
+  };
+
+  /*
+   * ============================================================
+   * REGION CARD ENTER
+   *
+   * Cancel the close timer when the mouse
+   * successfully reaches the card.
+   * ============================================================
+   */
+
+  const handleRegionCardEnter = () => {
+    clearTimeout(
+      regionLeaveTimer.current
+    );
+  };
+
+  /*
+   * ============================================================
+   * REGION CARD LEAVE
+   * ============================================================
+   */
+
+  const handleRegionCardLeave = () => {
+    clearTimeout(
+      regionLeaveTimer.current
+    );
+
+    setHoveredRegion(null);
+    setRegionRisks([]);
+  };
 
   /*
    * ============================================================
@@ -434,21 +521,28 @@ const handleRegionLeave = () => {
       ? medicine.name
       : medicineId;
   };
+
+  /*
+   * ============================================================
+   * FIND REGION NAME
+   * ============================================================
+   */
+
   const getRegionName = (regionId) => {
-  switch (regionId) {
-    case "reg_north":
-      return "North Region";
+    switch (regionId) {
+      case "reg_north":
+        return "North Region";
 
-    case "reg_east":
-      return "East Region";
+      case "reg_east":
+        return "East Region";
 
-    case "reg_south":
-      return "South Region";
+      case "reg_south":
+        return "South Region";
 
-    default:
-      return regionId;
-  }
-};
+      default:
+        return regionId;
+    }
+  };
 
   /*
    * ============================================================
@@ -458,20 +552,16 @@ const handleRegionLeave = () => {
 
   return (
     <div className="map-view card">
-
       <h2 className="heading-text">
         Map View
       </h2>
 
-
       <div className="map-visualization-wrapper">
-
         <svg
           viewBox="0 0 1000 600"
           xmlns="http://www.w3.org/2000/svg"
           className="medical-city-map"
         >
-
           <defs>
 
             {/* =================================================
@@ -484,7 +574,6 @@ const handleRegionLeave = () => {
               height={20}
               patternUnits="userSpaceOnUse"
             >
-
               <circle
                 cx={2}
                 cy={2}
@@ -492,9 +581,7 @@ const handleRegionLeave = () => {
                 fill="#e0e0e0"
                 opacity="0.3"
               />
-
             </pattern>
-
 
             {/* =================================================
                 FACILITY GLOW
@@ -507,22 +594,16 @@ const handleRegionLeave = () => {
               width="300%"
               height="300%"
             >
-
               <feGaussianBlur
                 stdDeviation="4"
                 result="blur"
               />
 
               <feMerge>
-
                 <feMergeNode in="blur" />
-
                 <feMergeNode in="SourceGraphic" />
-
               </feMerge>
-
             </filter>
-
 
             {/* =================================================
                 DISTRICT GLOW
@@ -535,7 +616,6 @@ const handleRegionLeave = () => {
               width="120%"
               height="120%"
             >
-
               <feGaussianBlur
                 stdDeviation={5}
                 result="blur"
@@ -546,11 +626,9 @@ const handleRegionLeave = () => {
                 in2="blur"
                 operator="over"
               />
-
             </filter>
 
           </defs>
-
 
           {/* ====================================================
               BASE BACKGROUND
@@ -567,7 +645,6 @@ const handleRegionLeave = () => {
             height={600}
             fill="url(#urban-texture)"
           />
-
 
           {/* ====================================================
               RIVER
@@ -599,23 +676,25 @@ const handleRegionLeave = () => {
             "
           />
 
-
           {/* ====================================================
-              DISTRICTS
+              NORTH REGION
           ==================================================== */}
 
           <g
-  className={`district high-quarter ${
-    hoveredRegion === "reg_north"
-      ? "region-hovered"
-      : ""
-  }`}
-  onMouseEnter={() =>
-    handleRegionHover("reg_north")
-  }
-  onMouseLeave={handleRegionLeave}
->
-
+            className={`district high-quarter ${
+              hoveredRegion === "reg_north"
+                ? "region-hovered"
+                : ""
+            }`}
+            onMouseEnter={() =>
+              handleRegionHover(
+                "reg_north"
+              )
+            }
+            onMouseLeave={
+              handleRegionLeave
+            }
+          >
             <path
               d="
                 M 30 30
@@ -627,68 +706,80 @@ const handleRegionLeave = () => {
                 Z
               "
             />
-
           </g>
 
-
-         <g
-  className={`district iron-docks ${
-    hoveredRegion === "reg_east"
-      ? "region-hovered"
-      : ""
-  }`}
-  onMouseEnter={() =>
-    handleRegionHover("reg_east")
-  }
-  onMouseLeave={handleRegionLeave}
->
-  <path
-    d="
-      M 500 30
-      L 970 30
-      L 970 320
-      C 850 330,
-        750 250,
-        620 280
-      C 510 295,
-        450 200,
-        420 190
-      Z
-    "
-  />
-</g>
-
+          {/* ====================================================
+              EAST REGION
+          ==================================================== */}
 
           <g
-  className={`district foundry-commons ${
-    hoveredRegion === "reg_south"
-      ? "region-hovered"
-      : ""
-  }`}
-  onMouseEnter={() =>
-    handleRegionHover("reg_south")
-  }
-  onMouseLeave={handleRegionLeave}
->
-  <path
-    d="
-      M 20 240
-      C 150 230,
-        300 210,
-        420 190
-      C 450 200,
-        510 295,
-        620 280
-      C 750 250,
-        850 330,
-        970 320
-      L 970 570
-      L 30 570
-      Z
-    "
-  />
-</g>
+            className={`district iron-docks ${
+              hoveredRegion === "reg_east"
+                ? "region-hovered"
+                : ""
+            }`}
+            onMouseEnter={() =>
+              handleRegionHover(
+                "reg_east"
+              )
+            }
+            onMouseLeave={
+              handleRegionLeave
+            }
+          >
+            <path
+              d="
+                M 500 30
+                L 970 30
+                L 970 320
+                C 850 330,
+                  750 250,
+                  620 280
+                C 510 295,
+                  450 200,
+                  420 190
+                Z
+              "
+            />
+          </g>
 
+          {/* ====================================================
+              SOUTH REGION
+          ==================================================== */}
+
+          <g
+            className={`district foundry-commons ${
+              hoveredRegion === "reg_south"
+                ? "region-hovered"
+                : ""
+            }`}
+            onMouseEnter={() =>
+              handleRegionHover(
+                "reg_south"
+              )
+            }
+            onMouseLeave={
+              handleRegionLeave
+            }
+          >
+            <path
+              d="
+                M 20 240
+                C 150 230,
+                  300 210,
+                  420 190
+                C 450 200,
+                  510 295,
+                  620 280
+                C 750 250,
+                  850 330,
+                  970 320
+                L 970 570
+                L 30 570
+                Z
+              "
+            />
+          </g>
 
           {/* ====================================================
               REGION RISK OVERLAYS
@@ -705,48 +796,51 @@ const handleRegionLeave = () => {
                 20 240
               Z
             "
-            opacity={getRiskOpacity("reg_north")}
+            opacity={getRiskOpacity(
+              "reg_north"
+            )}
           />
-
 
           <path
             className="risk-overlay east-risk"
             d="
-  M 500 30
-  L 970 30
-  L 970 320
-  C 850 330,
-    750 250,
-    620 280
-  C 510 295,
-    450 200,
-    420 190
-  Z
-"
-            opacity={getRiskOpacity("reg_east")}
+              M 500 30
+              L 970 30
+              L 970 320
+              C 850 330,
+                750 250,
+                620 280
+              C 510 295,
+                450 200,
+                420 190
+              Z
+            "
+            opacity={getRiskOpacity(
+              "reg_east"
+            )}
           />
-
 
           <path
             className="risk-overlay south-risk"
             d="
-  M 20 240
-  C 150 230,
-    300 210,
-    420 190
-  C 450 200,
-    510 295,
-    620 280
-  C 750 250,
-    850 330,
-    970 320
-  L 970 570
-  L 30 570
-  Z
-"
-            opacity={getRiskOpacity("reg_south")}
+              M 20 240
+              C 150 230,
+                300 210,
+                420 190
+              C 450 200,
+                510 295,
+                620 280
+              C 750 250,
+                850 330,
+                970 320
+              L 970 570
+              L 30 570
+              Z
+            "
+            opacity={getRiskOpacity(
+              "reg_south"
+            )}
           />
-
 
           {/* ====================================================
               BUILDINGS
@@ -757,7 +851,6 @@ const handleRegionLeave = () => {
             {/* ================= NORTH ================= */}
 
             <g className="b-block">
-
               <rect
                 x={80}
                 y={60}
@@ -821,14 +914,11 @@ const handleRegionLeave = () => {
                 height={30}
                 rx={3}
               />
-
             </g>
-
 
             {/* ================= EAST ================= */}
 
             <g className="b-block">
-
               <rect
                 x={540}
                 y={60}
@@ -901,14 +991,11 @@ const handleRegionLeave = () => {
                   Z
                 "
               />
-
             </g>
-
 
             {/* ================= SOUTH ================= */}
 
             <g className="b-block">
-
               <rect
                 x={60}
                 y={280}
@@ -1041,11 +1128,9 @@ const handleRegionLeave = () => {
                 width={170}
                 height={60}
               />
-
             </g>
 
           </g>
-
 
           {/* ====================================================
               MAIN ROADS
@@ -1092,7 +1177,6 @@ const handleRegionLeave = () => {
                 L 700 570
               "
             />
-
 
             {/* Secondary streets */}
 
@@ -1173,7 +1257,6 @@ const handleRegionLeave = () => {
 
           </g>
 
-
           {/* ====================================================
               BRIDGES
           ==================================================== */}
@@ -1198,7 +1281,6 @@ const handleRegionLeave = () => {
             strokeWidth={1}
             transform="rotate(42, 520, 245)"
           />
-
 
           {/* ====================================================
               REGION LABELS
@@ -1232,7 +1314,6 @@ const handleRegionLeave = () => {
 
           </g>
 
-
           {/* ====================================================
               FACILITY MARKERS
           ==================================================== */}
@@ -1240,13 +1321,13 @@ const handleRegionLeave = () => {
           <g className="facility-layer">
 
             {facilities.map((facility) => {
-
               const {
                 x,
                 y,
-              } = getFacilityPosition(
-                facility
-              );
+              } =
+                getFacilityPosition(
+                  facility
+                );
 
               const color =
                 getFacilityColor(
@@ -1262,27 +1343,21 @@ const handleRegionLeave = () => {
                 hoveredFacility?.id ===
                 facility.id;
 
-
               return (
-
                 <g
                   key={facility.id}
                   className="facility-marker"
-
                   onMouseEnter={() =>
                     handleFacilityHover(
                       facility
                     )
                   }
-
                   onMouseLeave={
                     handleFacilityLeave
                   }
                 >
 
-                  {/* ------------------------------------------
-                      Hover glow
-                  ------------------------------------------- */}
+                  {/* Hover glow */}
 
                   <circle
                     cx={x}
@@ -1302,10 +1377,7 @@ const handleRegionLeave = () => {
                     className="facility-glow"
                   />
 
-
-                  {/* ------------------------------------------
-                      Main marker
-                  ------------------------------------------- */}
+                  {/* Main marker */}
 
                   <circle
                     cx={x}
@@ -1321,10 +1393,7 @@ const handleRegionLeave = () => {
                     className="facility-dot"
                   />
 
-
-                  {/* ------------------------------------------
-                      Inner dot
-                  ------------------------------------------- */}
+                  {/* Inner dot */}
 
                   <circle
                     cx={x}
@@ -1334,10 +1403,7 @@ const handleRegionLeave = () => {
                     pointerEvents="none"
                   />
 
-
-                  {/* ------------------------------------------
-                      Facility name
-                  ------------------------------------------- */}
+                  {/* Facility name */}
 
                   <text
                     x={x + radius + 7}
@@ -1351,10 +1417,7 @@ const handleRegionLeave = () => {
                     {facility.name}
                   </text>
 
-
-                  {/* ------------------------------------------
-                      Browser tooltip
-                  ------------------------------------------- */}
+                  {/* Browser tooltip */}
 
                   <title>
                     {facility.name}
@@ -1370,50 +1433,33 @@ const handleRegionLeave = () => {
                   </title>
 
                 </g>
-
               );
-
             })}
 
           </g>
-
 
           {/* ====================================================
               MEDICINE STATUS HOVER CARD
           ==================================================== */}
 
           {hoveredFacility && (
-
             (() => {
-
               const {
                 x,
                 y,
-              } = getFacilityPosition(
-                hoveredFacility
-              );
-
-
-              /*
-               * Card dimensions in SVG coordinates.
-               */
+              } =
+                getFacilityPosition(
+                  hoveredFacility
+                );
 
               const cardWidth = 275;
               const cardHeight = 330;
 
-
-              /*
-               * Default position:
-               * right of facility.
-               */
-
               let cardX = x + 25;
               let cardY = y - 100;
 
-
               /*
-               * If card would go outside right edge,
-               * move it to the left of the facility.
+               * Keep card inside right edge.
                */
 
               if (
@@ -1425,7 +1471,6 @@ const handleRegionLeave = () => {
                   25;
               }
 
-
               /*
                * Keep card inside top edge.
                */
@@ -1433,7 +1478,6 @@ const handleRegionLeave = () => {
               if (cardY < 10) {
                 cardY = 10;
               }
-
 
               /*
                * Keep card inside bottom edge.
@@ -1447,9 +1491,7 @@ const handleRegionLeave = () => {
                   cardHeight;
               }
 
-
               return (
-
                 <foreignObject
                   x={cardX}
                   y={cardY}
@@ -1458,17 +1500,13 @@ const handleRegionLeave = () => {
                   className="facility-status-foreign-object"
                   pointerEvents="none"
                 >
-
                   <div className="facility-status-card">
 
-                    {/* ========================================
-                        CARD HEADER
-                    ========================================= */}
+                    {/* CARD HEADER */}
 
                     <div className="facility-status-header">
 
                       <div className="facility-status-icon">
-
                         {hoveredFacility.type ===
                         "hospital"
                           ? "H"
@@ -1476,70 +1514,51 @@ const handleRegionLeave = () => {
                             "clinic"
                           ? "C"
                           : "P"}
-
                       </div>
-
 
                       <div className="facility-status-heading">
 
                         <div className="facility-status-title">
-
                           {
                             hoveredFacility.name
                           }
-
                         </div>
 
                         <div className="facility-status-subtitle">
-
-                          {hoveredFacility.type}
+                          {
+                            hoveredFacility.type
+                          }
                           {" • "}
-                          {hoveredFacility.tier}
-
+                          {
+                            hoveredFacility.tier
+                          }
                         </div>
 
                       </div>
 
                     </div>
 
-
-                    {/* ========================================
-                        DIVIDER
-                    ========================================= */}
+                    {/* DIVIDER */}
 
                     <div className="facility-status-divider" />
 
-
-                    {/* ========================================
-                        MEDICINES
-                    ========================================= */}
+                    {/* MEDICINES */}
 
                     <div className="facility-status-list">
 
                       {loadingStatuses ? (
-
                         <div className="facility-status-loading">
-
                           <div className="loading-spinner" />
-
                           Loading medicine status...
-
                         </div>
-
                       ) : facilityStatuses.length ===
                         0 ? (
-
                         <div className="facility-status-loading">
-
                           No status data available.
-
                         </div>
-
                       ) : (
-
                         facilityStatuses.map(
                           (status) => {
-
                             const medicineName =
                               getMedicineName(
                                 status.medicine_id
@@ -1551,9 +1570,7 @@ const handleRegionLeave = () => {
                               ] ||
                               "#64748b";
 
-
                             return (
-
                               <div
                                 key={
                                   status.medicine_id
@@ -1562,17 +1579,12 @@ const handleRegionLeave = () => {
                               >
 
                                 <div className="medicine-info">
-
                                   <div className="medicine-name">
-
                                     {
                                       medicineName
                                     }
-
                                   </div>
-
                                 </div>
-
 
                                 <div
                                   className="medicine-status"
@@ -1581,7 +1593,6 @@ const handleRegionLeave = () => {
                                       statusColor,
                                   }}
                                 >
-
                                   <span
                                     className="status-dot"
                                     style={{
@@ -1593,29 +1604,21 @@ const handleRegionLeave = () => {
                                   {
                                     status.status
                                   }
-
                                 </div>
 
                               </div>
-
                             );
-
                           }
                         )
-
                       )}
 
                     </div>
 
-
-                    {/* ========================================
-                        STATUS LEGEND
-                    ========================================= */}
+                    {/* STATUS LEGEND */}
 
                     {!loadingStatuses &&
                       facilityStatuses.length >
                         0 && (
-
                         <div className="status-mini-legend">
 
                           <span>
@@ -1659,159 +1662,215 @@ const handleRegionLeave = () => {
                           </span>
 
                         </div>
+                      )}
 
+                  </div>
+                </foreignObject>
+              );
+            })()
+          )}
+
+          {/* ====================================================
+              REGION RISK HOVER CARD
+          ==================================================== */}
+
+          {hoveredRegion && (
+            (() => {
+              let cardX = 40;
+              let cardY = 70;
+
+              if (
+                hoveredRegion ===
+                "reg_east"
+              ) {
+                cardX = 640;
+                cardY = 70;
+              }
+
+              if (
+                hoveredRegion ===
+                "reg_south"
+              ) {
+                cardX = 40;
+                cardY = 250;
+              }
+
+              /*
+               * Card dimensions.
+               *
+               * The content area is scrollable,
+               * so the card does not need to grow
+               * with the number of medicines.
+               */
+
+              const cardWidth = 300;
+              const cardHeight = 320;
+
+              return (
+                <foreignObject
+                  x={cardX}
+                  y={cardY}
+                  width={cardWidth}
+                  height={cardHeight}
+                  className="region-risk-foreign-object"
+
+                  /*
+                   * IMPORTANT:
+                   * Do NOT use pointerEvents="none".
+                   *
+                   * The card needs to receive mouse
+                   * events so that the user can move
+                   * into it and scroll.
+                   */
+
+                  onMouseEnter={
+                    handleRegionCardEnter
+                  }
+
+                  onMouseLeave={
+                    handleRegionCardLeave
+                  }
+                >
+
+                  <div className="region-risk-card">
+
+                    {/* HEADER */}
+
+                    <div className="region-risk-header">
+
+                      <div className="region-risk-icon">
+                        R
+                      </div>
+
+                      <div className="region-risk-heading">
+
+                        <div className="region-risk-title">
+                          {getRegionName(
+                            hoveredRegion
+                          )}
+                        </div>
+
+                        <div className="region-risk-subtitle">
+                          Regional Risk
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    <div className="region-risk-divider" />
+
+                    {/* CONTENT */}
+
+                    <div className="region-risk-list">
+
+                      {loadingRegionRisk ? (
+                        <div className="region-risk-loading">
+                          <div className="loading-spinner" />
+                          Loading regional risk...
+                        </div>
+                      ) : regionRisks.length ===
+                        0 ? (
+                        <div className="region-risk-loading">
+                          No risk data available.
+                        </div>
+                      ) : (
+                        regionRisks.map(
+                          (risk) => (
+                            <div
+                              key={
+                                risk.medicine_id
+                              }
+                              className="region-risk-row"
+                            >
+
+                              <div className="region-risk-medicine">
+
+                                <div className="region-risk-medicine-name">
+                                  {getMedicineName(
+                                    risk.medicine_id
+                                  )}
+                                </div>
+
+                                <div className="region-risk-at-risk">
+                                  {
+                                    risk.facilities_at_risk
+                                  }
+                                  {" / "}
+                                  {
+                                    risk.total_facilities
+                                  }
+                                  {" facilities at risk"}
+                                </div>
+
+                              </div>
+
+                              <div className="region-risk-score">
+                                {(
+                                  Number(
+                                    risk.regional_risk_score
+                                  ) * 100
+                                ).toFixed(0)}
+                                %
+                              </div>
+
+                            </div>
+                          )
+                        )
+                      )}
+
+                    </div>
+
+                    {/* SUMMARY */}
+
+                    {!loadingRegionRisk &&
+                      regionRisks.length >
+                        0 && (
+                        <div className="region-risk-summary">
+
+                          <div>
+                            <span>
+                              Medicines tracked
+                            </span>
+
+                            <strong>
+                              {
+                                regionRisks.length
+                              }
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              Overall trend
+                            </span>
+
+                            <strong>
+                              {regionRisks.some(
+                                (risk) =>
+                                  risk.trend_direction ===
+                                  "worsening"
+                              )
+                                ? "Worsening"
+                                : regionRisks.some(
+                                    (risk) =>
+                                      risk.trend_direction ===
+                                      "improving"
+                                  )
+                                ? "Improving"
+                                : "Stable"}
+                            </strong>
+                          </div>
+
+                        </div>
                       )}
 
                   </div>
 
                 </foreignObject>
-
               );
-
             })()
-
           )}
-          {/* ====================================================
-    REGION RISK HOVER CARD
-==================================================== */}
-
-{hoveredRegion && (
-  (() => {
-    let cardX = 40;
-    let cardY = 70;
-
-    if (hoveredRegion === "reg_east") {
-      cardX = 640;
-      cardY = 70;
-    }
-
-    if (hoveredRegion === "reg_south") {
-      cardX = 40;
-      cardY = 250;
-    }
-
-    const cardWidth = 300;
-    const cardHeight = 320;
-
-    return (
-      <foreignObject
-        x={cardX}
-        y={cardY}
-        width={cardWidth}
-        height={cardHeight}
-        pointerEvents="none"
-        className="region-risk-foreign-object"
-      >
-        <div className="region-risk-card">
-
-          {/* HEADER */}
-          <div className="region-risk-header">
-            <div className="region-risk-icon">
-              R
-            </div>
-
-            <div className="region-risk-heading">
-              <div className="region-risk-title">
-                {getRegionName(hoveredRegion)}
-              </div>
-
-              <div className="region-risk-subtitle">
-                Regional Risk
-              </div>
-            </div>
-          </div>
-
-          <div className="region-risk-divider" />
-
-          {/* CONTENT */}
-          <div className="region-risk-list">
-
-            {loadingRegionRisk ? (
-              <div className="region-risk-loading">
-                <div className="loading-spinner" />
-                Loading regional risk...
-              </div>
-            ) : regionRisks.length === 0 ? (
-              <div className="region-risk-loading">
-                No risk data available.
-              </div>
-            ) : (
-              regionRisks.map((risk) => (
-                <div
-                  key={risk.medicine_id}
-                  className="region-risk-row"
-                >
-                  <div className="region-risk-medicine">
-                    <div className="region-risk-medicine-name">
-                      {getMedicineName(
-                        risk.medicine_id
-                      )}
-                    </div>
-
-                    <div className="region-risk-at-risk">
-                      {risk.facilities_at_risk}
-                      {" / "}
-                      {risk.total_facilities}
-                      {" facilities at risk"}
-                    </div>
-                  </div>
-
-                  <div className="region-risk-score">
-                    {(Number(
-                      risk.regional_risk_score
-                    ) * 100).toFixed(0)}%
-                  </div>
-                </div>
-              ))
-            )}
-
-          </div>
-
-          {/* SUMMARY */}
-          {!loadingRegionRisk &&
-            regionRisks.length > 0 && (
-              <div className="region-risk-summary">
-
-                <div>
-                  <span>
-                    Medicines tracked
-                  </span>
-
-                  <strong>
-                    {regionRisks.length}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Overall trend
-                  </span>
-
-                  <strong>
-                    {regionRisks.some(
-                      (risk) =>
-                        risk.trend_direction ===
-                        "worsening"
-                    )
-                      ? "Worsening"
-                      : regionRisks.some(
-                          (risk) =>
-                            risk.trend_direction ===
-                            "improving"
-                        )
-                      ? "Improving"
-                      : "Stable"}
-                  </strong>
-                </div>
-
-              </div>
-            )}
-
-        </div>
-      </foreignObject>
-    );
-  })()
-)}
 
           {/* ====================================================
               LEGEND
@@ -1833,7 +1892,6 @@ const handleRegionLeave = () => {
               stroke="#cbd5e1"
             />
 
-
             <circle
               cx={20}
               cy={20}
@@ -1850,7 +1908,6 @@ const handleRegionLeave = () => {
             >
               Hospital
             </text>
-
 
             <circle
               cx={100}
@@ -1869,7 +1926,6 @@ const handleRegionLeave = () => {
               Clinic
             </text>
 
-
             <circle
               cx={20}
               cy={45}
@@ -1887,7 +1943,6 @@ const handleRegionLeave = () => {
               Pharmacy
             </text>
 
-
             <text
               x={115}
               y={49}
@@ -1899,9 +1954,7 @@ const handleRegionLeave = () => {
           </g>
 
         </svg>
-
       </div>
-
     </div>
   );
 }
