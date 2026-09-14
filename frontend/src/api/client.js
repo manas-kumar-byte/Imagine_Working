@@ -13,6 +13,11 @@ export async function getFacilityStatus(facilityId, medicineId) {
   return res.json();
 }
 
+export async function getMedicines() {
+  const res = await fetch(`${BASE_URL}/medicines`);
+  return res.json();
+}
+
 export async function getRegionRisk(regionId, medicineId) {
   const res = await fetch(`${BASE_URL}/regions/${regionId}/risk?medicine_id=${medicineId}`);
   return res.json();

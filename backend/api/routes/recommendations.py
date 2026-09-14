@@ -20,7 +20,7 @@ def recommendations(facility_id: str, medicine_id: str) -> list[RecommendationRe
     return [
         RecommendationResponse(
             source_facility_id=rec["source_facility_id"],
-            quantity=rec["quantity"],
+            quantity=round(rec["quantity"]),
             distance_km=rec["distance_km"],
             urgency_score=rec["urgency_score"],
             feasibility_score=rec["feasibility_score"],

@@ -15,6 +15,7 @@ from backend.db.store import (
 from backend.forecasting.stock_status import StockStatus
 from backend.forecasting.stockout_forecast import StockoutForecast
 from backend.models.facility import Facility
+from backend.models.medicine import Medicine
 from backend.models.inventory import InventorySnapshot
 from backend.regional.propagation_score import PropagationScore
 from backend.regional.region_risk import RegionRisk
@@ -46,6 +47,24 @@ def _row_to_facility(row: "pd.Series") -> Facility:
         type=str(row["type"]),
         tier=str(row["tier"]),
         population_served=int(row["population_served"]),
+    )
+
+def _row_to_medicine(row: "pd.Series") -> Medicine:
+
+    return Medicine(
+
+        id=str(row["id"]),
+
+        name=str(row["name"]),
+
+        category=str(row["category"]),
+
+        unit=str(row["unit"]),
+
+        essential_flag=bool(row["essential_flag"]),
+
+        substitute_ids=[] if pd.isna(row["substitute_ids"]) else list(row["substitute_ids"]),
+
     )
 
 
@@ -172,3 +191,15 @@ def shortage_propagation_score(
         region_id=region_id,
         medicine_id=medicine_id
     )
+
+def get_medicine(medicine_id: str) -> Medicine | None:
+
+    df = _get_medicines_df(DATA_CHOICE)
+
+    matches = df[df["id"] == medicine_id]
+
+    if matches.empty:
+
+        return None
+
+    return _row_to_medicine(matches.iloc[0])

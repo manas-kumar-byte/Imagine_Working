@@ -8,6 +8,7 @@ than a red dot with no reasoning. Keep this cheap and demo-able.
 
 from backend.explainability import data_access as da
 from backend.explainability.confidence import confidence_band
+from backend.models.medicine import Medicine
 
 #NOTE: I've created a separate data access file, for mock data and data call functions.
 #I will be calling them here for now, but later on the mock data needs to be
@@ -30,8 +31,11 @@ def _explain_redistribution(rec: dict) -> str:
     source_name = _facility_name(rec["source_facility_id"])
     urgency_pct = int(rec["urgency_score"] * 100)
     feasibility_pct = int(rec["feasibility_score"] * 100)
+    medicine = da.get_medicine(rec["medicine_id"])
+    medicine_name = medicine.name if medicine else rec["medicine_id"]
+    
     return (
-        f"Transfer {rec['quantity']:.0f} units from {source_name}, "
+        f"Transfer {rec['quantity']:.0f} units of {medicine_name} from {source_name}, "
         f"{rec['distance_km']:.0f}km away ({urgency_pct}% urgency, {feasibility_pct}% feasibility)."
     )
 
