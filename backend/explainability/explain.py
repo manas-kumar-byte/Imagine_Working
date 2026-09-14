@@ -31,7 +31,8 @@ def _explain_redistribution(rec: dict) -> str:
     source_name = _facility_name(rec["source_facility_id"])
     urgency_pct = int(rec["urgency_score"] * 100)
     feasibility_pct = int(rec["feasibility_score"] * 100)
-    medicine_name = Medicine.name if Medicine else rec["medicine_id"]
+    medicine = da.get_medicine(rec["medicine_id"])
+    medicine_name = medicine.name if medicine else rec["medicine_id"]
     
     return (
         f"Transfer {rec['quantity']:.0f} units of {medicine_name} from {source_name}, "
