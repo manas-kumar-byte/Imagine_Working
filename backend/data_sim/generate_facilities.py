@@ -5,14 +5,22 @@ import random
 from typing import List
 
 from backend.models.facility import Facility
+from backend.config import SIM_SEED
+
+from backend.data_sim.generate_bounds import generate_weights
+
+random.seed(SIM_SEED)
 
 # Realistic-ish mix: most care happens at clinics/pharmacies, hospitals and
 # warehouses are rarer. Tier distribution is conditioned on type below.
+
+weights = [0.4, 0.3, 0.2, 0.1]
+type_weights = generate_weights(weights, 1)
 _TYPE_WEIGHTS = {
-    "clinic": 0.40,
-    "pharmacy": 0.30,
-    "hospital": 0.20,
-    "warehouse": 0.10,
+    "clinic": type_weights[0],
+    "pharmacy": type_weights[1],
+    "hospital": type_weights[2],
+    "warehouse": type_weights[3],
 }
 
 _TIER_WEIGHTS_BY_TYPE = {
@@ -65,7 +73,7 @@ def _region_bounds(region_config: dict) -> dict:
     return result
 
 
-def generate_facilities(n: int, region_config: dict, seed: int = None) -> List[Facility]:
+def generate_facilities(n: int, region_config: dict, seed: int = SIM_SEED) -> List[Facility]:
     """Generate n synthetic facilities spread across the regions in region_config.
 
     Args:

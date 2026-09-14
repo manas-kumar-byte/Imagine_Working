@@ -11,34 +11,39 @@ from pathlib import Path
 
 import pandas as pd  # type: ignore
 
+from backend.data_sim.generate_bounds import generate_limits
 from backend.data_sim.generate_facilities import generate_facilities
 from backend.data_sim.generate_medicines import generate_medicines
 from backend.data_sim.simulate_consumption import simulate_consumption
 from backend.data_sim.simulate_replenishment import simulate_replenishment
+from backend.config import SIM_SEED
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-SEED = 42
-random.seed(SEED)
+random.seed(SIM_SEED)
+
 
 DATA_DIR = Path("data")
 SIMULATED_DIR = DATA_DIR / "simulated"
 
 N_FACILITIES = 18
 
+coordinates_bounds = generate_limits(random.random() * 2, random.random() * 5)      # Max 2 degrees latitude span, max 5 degrees longitude span   
+
 REGION_CONFIG = {
     "region_ids": [
         "reg_north",
         "reg_south",
         "reg_east",
+        "reg_west",
     ],
     "bounds": {
-        "lat_min": 5.0,
-        "lat_max": 15.0,
-        "lon_min": 30.0,
-        "lon_max": 45.0,
+        "lat_min": coordinates_bounds[0],
+        "lat_max": coordinates_bounds[1],
+        "lon_min": coordinates_bounds[2],
+        "lon_max": coordinates_bounds[3],
     },
 }
 
@@ -210,24 +215,33 @@ def force_demo_scenarios(
     Create guaranteed recommendation scenarios.
 
     For EVERY medicine:
-
-        fac_0000 -> DEFICIT
-        fac_0003 -> SURPLUS
-        fac_0006 -> SURPLUS
-        fac_0009 -> STOCKOUT
+        Exactly 2 facilities in deficit
+        Exactly 2 facilities in surplus
+        Exactly 2 facilities in stockout
 
     These facilities are all in the same region because
     generate_facilities assigns regions cyclically.
     """
+    # Choosing the indices for surplus, deficit and stockout
+    facilities_indices = range(len(facilities))
 
+    deficit_facilities_indices = set(random.sample(facilities_indices, 4))
+    facilities_indices = [item for item in facilities_indices if item not in deficit_facilities_indices]
+
+    surplus_facilities_indices = set(random.sample(facilities_indices, 2))
+    facilities_indices = [item for item in facilities_indices if item not in surplus_facilities_indices]
+
+    stockout_facilities_indices = set(random.sample(facilities_indices, 3))
+
+    # Convert to valid facility IDs
+    deficit_facilities_indices = [f"fac_{x:04d}" for x in deficit_facilities_indices]
+
+    surplus_facilities_indices = [f"fac_{x:04d}" for x in surplus_facilities_indices]
+
+    stockout_facilities_indices = [f"fac_{x:04d}" for x in stockout_facilities_indices]
+    
     if len(facilities) < 10 or not medicines:
         return inventory_snapshots
-
-    # Same region as fac_0000
-    deficit_facility = facilities[0].id
-    surplus_facility_1 = facilities[3].id
-    surplus_facility_2 = facilities[6].id
-    stockout_facility = facilities[9].id
 
     latest_date = max(
         row["timestamp"]
@@ -253,7 +267,7 @@ def force_demo_scenarios(
             # DEFICIT
             # -----------------------------------------------
 
-            if row["facility_id"] == deficit_facility:
+            if row["facility_id"] in deficit_facilities_indices:
 
                 row["stock_on_hand"] = max(
                     0,
@@ -261,32 +275,20 @@ def force_demo_scenarios(
                 )
 
             # -----------------------------------------------
-            # SURPLUS 1
+            # SURPLUS
             # -----------------------------------------------
 
-            elif row["facility_id"] == surplus_facility_1:
+            elif row["facility_id"] in surplus_facilities_indices:
 
                 row["stock_on_hand"] = min(
                     capacity,
                     reorder * 5
                 )
-
-            # -----------------------------------------------
-            # SURPLUS 2
-            # -----------------------------------------------
-
-            elif row["facility_id"] == surplus_facility_2:
-
-                row["stock_on_hand"] = min(
-                    capacity,
-                    reorder * 4
-                )
-
             # -----------------------------------------------
             # STOCKOUT
             # -----------------------------------------------
 
-            elif row["facility_id"] == stockout_facility:
+            elif row["facility_id"] in stockout_facilities_indices:
 
                 row["stock_on_hand"] = 0
 
@@ -337,7 +339,7 @@ def main():
     facilities = generate_facilities(
         N_FACILITIES,
         REGION_CONFIG,
-        seed=SEED,
+        seed=SIM_SEED,
     )
 
     print(f"      Facilities: {len(facilities)}")
@@ -378,8 +380,8 @@ def main():
 
             # Stable deterministic seed
             pair_seed = (
-                SEED
-                + pair_number * 1009
+                SIM_SEED
+                + pair_number * 1229
             )
 
             rng = random.Random(pair_seed)
@@ -396,17 +398,14 @@ def main():
             initial_stock = round(
                 avg_daily_use
                 * rng.uniform(10, 25),
-                2,
             )
 
             reorder_point = round(
                 avg_daily_use * rng.uniform(5, 9),
-                2,
             )
 
             max_capacity = round(
                 avg_daily_use * rng.uniform(25, 45),
-                2,
             )
 
             # ------------------------------------------------
@@ -416,12 +415,12 @@ def main():
             pattern_params = {
                 "avg_daily_use": avg_daily_use,
                 "trend": rng.uniform(
-                    -0.02,
-                    0.03,
+                    -0.05,
+                    0.04,
                 ),
                 "volatility": rng.uniform(
-                    0.05,
-                    0.20,
+                    0.00,
+                    0.40,
                 ),
             }
 
@@ -454,8 +453,8 @@ def main():
                 lead_time_dist,
                 reorder_cycle_days=21,
                 order_qty_range=(
-                    int(avg_daily_use * 15),
-                    int(avg_daily_use * 30),
+                    int(avg_daily_use * 5),
+                    int(avg_daily_use * 10),
                 ),
                 avg_daily_use=avg_daily_use,
                 start_date=START_DATE,

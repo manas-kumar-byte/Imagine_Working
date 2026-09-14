@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from typing import List
 
 from backend.models.consumption import ConsumptionRecord
+from backend.config import SIM_SEED
 
 _SEASONAL_PERIOD_DAYS = 365.0
 
@@ -20,8 +21,8 @@ def simulate_consumption(
     medicine_id: str,
     days: int,
     pattern_params: dict,
-    start_date: date = None,
-    seed: int = None,
+    start_date: date | None = None,
+    seed: int = SIM_SEED,
 ) -> List[ConsumptionRecord]:
     """
     pattern_params example:
@@ -41,17 +42,14 @@ def simulate_consumption(
     rng = random.Random(seed)
 
     base_daily_use = pattern_params.get("base_daily_use", 10.0)
-    seasonal_amplitude = pattern_params.get("seasonal_amplitude", 0.0)
-    trend_pct_per_month = pattern_params.get("trend_pct_per_month", 0.0)
+    seasonal_amplitude = pattern_params.get("seasonal_amplitude", round(rng.uniform(0.00, 0.40), 2))
+    trend_pct_per_month = pattern_params.get("trend_pct_per_month", round(rng.uniform(-0.2, 0.2), 2))
     shock_events = pattern_params.get("shock_events", [])
     noise_std = pattern_params.get("noise_std", 0.0)
 
     # Convert a monthly growth rate into an equivalent daily compounding
     # rate: (1 + monthly)^(1/30.4) - 1.
-    if trend_pct_per_month:
-        daily_trend_rate = (1.0 + trend_pct_per_month) ** (1.0 / 30.4) - 1.0
-    else:
-        daily_trend_rate = 0.0
+    daily_trend_rate = (1.0 + trend_pct_per_month) ** (1.0 / 30.4) - 1.0
 
     if start_date is None:
         start_date = date.today() - timedelta(days=days)
@@ -87,7 +85,7 @@ def simulate_consumption(
                 facility_id=facility_id,
                 medicine_id=medicine_id,
                 date=current_date.isoformat(),
-                quantity_dispensed=round(quantity, 2),
+                quantity_dispensed=round(quantity),
             )
         )
 

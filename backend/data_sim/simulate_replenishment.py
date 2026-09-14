@@ -6,10 +6,12 @@ from datetime import date, timedelta
 from typing import List, Optional
 
 from backend.models.replenishment import ReplenishmentOrder
+from backend.config import SIM_SEED
 
 _DEFAULT_REORDER_CYCLE_DAYS = 21
 _DEFAULT_ORDER_QTY_RANGE = (200, 800)
 
+random.seed(SIM_SEED)
 
 def _draw_lead_time(lead_time_dist: dict, rng: random.Random) -> float:
     distribution = lead_time_dist.get("distribution", "normal")
@@ -34,10 +36,10 @@ def simulate_replenishment(
     lead_time_dist: dict,
     reorder_cycle_days: int = _DEFAULT_REORDER_CYCLE_DAYS,
     order_qty_range: tuple = _DEFAULT_ORDER_QTY_RANGE,
-    avg_daily_use: float = None,
-    start_date: date = None,
-    as_of_day: int = None,
-    seed: int = None,
+    avg_daily_use: float | None = None,
+    start_date: date | None = None,
+    as_of_day: int | None = None,
+    seed: int = SIM_SEED,
 ) -> List[ReplenishmentOrder]:
     """
     lead_time_dist example:
@@ -64,7 +66,7 @@ def simulate_replenishment(
         List[ReplenishmentOrder]
     """
     rng = random.Random(seed)
-    delay_prob = lead_time_dist.get("delay_prob", 0.0)
+    delay_prob = lead_time_dist.get("delay_prob", rng.uniform(0.20, 0.40))   # Default between 20% and 40% chance of delay
 
     if start_date is None:
         start_date = date.today() - timedelta(days=days)
@@ -91,7 +93,7 @@ def simulate_replenishment(
         else:
             # Small +/- jitter even for "on time" deliveries so not every
             # non-delayed order lands on the exact expected day.
-            actual_delivery_day = expected_delivery_day + rng.uniform(-0.5, 0.5)
+            actual_delivery_day = expected_delivery_day + rng.uniform(-5, 5)
 
         if actual_delivery_day <= as_of_day:
             actual_delivery_date = (
@@ -106,7 +108,7 @@ def simulate_replenishment(
         order_id = f"ord_{facility_id}_{medicine_id}_{order_idx:04d}"
         if avg_daily_use is not None and avg_daily_use > 0:
             target_qty = avg_daily_use * reorder_cycle_days
-            quantity = round(target_qty * rng.uniform(0.8, 1.2), 1)
+            quantity = round(target_qty * rng.uniform(0.8, 1.2))
         else:
             quantity = float(rng.randint(*order_qty_range))
 
@@ -118,7 +120,7 @@ def simulate_replenishment(
                 order_date=order_date.isoformat(),
                 expected_delivery_date=expected_delivery_date.isoformat(),
                 actual_delivery_date=actual_delivery_date,
-                quantity=quantity,
+                quantity=round(quantity),
                 status=status,
             )
         )

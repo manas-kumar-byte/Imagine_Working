@@ -57,19 +57,15 @@ def detect_emerging_shortage(
     ).isoformat()
 
     for med_id in medicine_ids:
-
         for region_id in region_ids:
-
             risk = aggregate_region_risk(
                 region_id=region_id,
                 medicine_id=med_id
             )
-
             propagation = shortage_propagation_score(
                 region_id=region_id,
                 medicine_id=med_id
             )
-
             if (
                 risk["regional_risk_score"]
                 >= STATUS_THRESHOLDS["watch"]
@@ -87,10 +83,11 @@ def detect_emerging_shortage(
                     ),
                     "first_detected_at": detected_at
                 })
-
     results.sort(
         key=lambda item: item["regional_risk_score"],
         reverse=True
     )
 
     return results
+
+detect_emerging_shortage()

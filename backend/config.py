@@ -11,6 +11,8 @@ RAW_DIR = DATA_DIR / "raw"
 
 DIR_CHOICE = 3
 
+SIM_SEED = 49982
+
 FORECAST_DIR = Path(__file__).resolve().parent / "forecasting"
 
 API_DIR = Path(__file__).resolve().parent / "api"
