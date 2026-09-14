@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 
 import {
@@ -7,7 +6,8 @@ import {
   getRegionRisk,
 } from "../api/client";
 
-// Facilities colored by status; regions shaded by regional_risk_score.
+// Facilities colored by type.
+// Regions shaded by regional_risk_score.
 // This is the demo's money shot — prioritize this component's polish.
 // Owner: Frontend/Product Lead
 
@@ -18,35 +18,56 @@ export default function MapView({
   /*
    * ============================================================
    * REGION LAYOUT
+   *
+   * The map now has FOUR regions:
+   *
+   *              NORTH          EAST
+   *          ┌──────────┬─────────────────┐
+   *          │          │                 │
+   *          │          │                 │
+   *          ├──────────┤                 │
+   *          │   WEST   │                 │
+   *          │          ├─────────────────┤
+   *          │          │                 │
+   *          └──────────┴─────────────────┘
+   *                 SOUTH
+   *
    * ============================================================
    */
 
   const REGION_BOUNDS = {
     reg_north: {
       minX: 30,
-      maxX: 420,
-      minY: 40,
+      maxX: 460,
+      minY: 30,
       maxY: 220,
     },
 
     reg_east: {
-      minX: 520,
-      maxX: 950,
-      minY: 40,
-      maxY: 280,
+      minX: 490,
+      maxX: 970,
+      minY: 30,
+      maxY: 320,
+    },
+
+    reg_west: {
+      minX: 30,
+      maxX: 460,
+      minY: 240,
+      maxY: 390,
     },
 
     reg_south: {
-      minX: 40,
-      maxX: 940,
-      minY: 340,
-      maxY: 550,
+      minX: 30,
+      maxX: 970,
+      minY: 410,
+      maxY: 570,
     },
   };
 
   /*
    * ============================================================
-   * MEDICINE / FACILITY HOVER STATE
+   * HOVER STATE
    * ============================================================
    */
 
@@ -61,12 +82,6 @@ export default function MapView({
   const [loadingStatuses, setLoadingStatuses] =
     useState(false);
 
-  /*
-   * ============================================================
-   * REGION HOVER STATE
-   * ============================================================
-   */
-
   const [hoveredRegion, setHoveredRegion] =
     useState(null);
 
@@ -78,10 +93,10 @@ export default function MapView({
 
   /*
    * ============================================================
-   * REGION HOVER TIMER
+   * HOVER TIMERS
    *
-   * This prevents the card from disappearing while the mouse
-   * travels from the region into the hover card.
+   * These stop the region card from disappearing when the
+   * mouse moves from the region into the floating card.
    * ============================================================
    */
 
@@ -110,6 +125,7 @@ export default function MapView({
     async function loadMedicines() {
       try {
         const data = await getMedicines();
+
         setMedicines(data);
       } catch (error) {
         console.error(
@@ -120,11 +136,17 @@ export default function MapView({
     }
 
     loadMedicines();
+
+    return () => {
+      clearTimeout(
+        regionLeaveTimer.current
+      );
+    };
   }, []);
 
   /*
    * ============================================================
-   * FACILITY POSITIONING
+   * GET FACILITIES FOR REGION
    * ============================================================
    */
 
@@ -134,6 +156,17 @@ export default function MapView({
         facility.region_id === regionId
     );
   };
+
+  /*
+   * ============================================================
+   * FACILITY POSITIONING
+   *
+   * Converts the real lat/lon values into positions inside
+   * the artificial SVG region.
+   *
+   * This means the fake map does NOT need a real map image.
+   * ============================================================
+   */
 
   const getFacilityPosition = (facility) => {
     const region =
@@ -157,8 +190,8 @@ export default function MapView({
       );
 
     /*
-     * Extract latitude/longitude values
-     * for this region.
+     * Extract coordinates for facilities
+     * inside this region.
      */
 
     const lats =
@@ -171,6 +204,10 @@ export default function MapView({
         (f) => Number(f.lon)
       );
 
+    /*
+     * Safety fallback.
+     */
+
     if (
       lats.length === 0 ||
       lons.length === 0
@@ -178,6 +215,7 @@ export default function MapView({
       return {
         x:
           (region.minX + region.maxX) / 2,
+
         y:
           (region.minY + region.maxY) / 2,
       };
@@ -200,8 +238,8 @@ export default function MapView({
       maxLon - minLon || 1;
 
     /*
-     * Normalize geographic coordinates
-     * to 0 -> 1.
+     * Normalize longitude and latitude
+     * into the 0 -> 1 range.
      */
 
     const normalizedX =
@@ -214,10 +252,10 @@ export default function MapView({
 
     /*
      * Padding keeps markers away from
-     * district boundaries.
+     * region boundaries.
      */
 
-    const padding = 30;
+    const padding = 28;
 
     const usableMinX =
       region.minX + padding;
@@ -233,6 +271,7 @@ export default function MapView({
 
     /*
      * Longitude:
+     *
      * low  -> left
      * high -> right
      */
@@ -244,8 +283,9 @@ export default function MapView({
 
     /*
      * Latitude:
+     *
      * high -> UP
-     * low -> DOWN
+     * low  -> DOWN
      */
 
     const y =
@@ -276,6 +316,9 @@ export default function MapView({
       case "pharmacy":
         return "#16a34a";
 
+      case "warehouse":
+        return "#9333ea";
+
       default:
         return "#64748b";
     }
@@ -303,7 +346,16 @@ export default function MapView({
 
   /*
    * ============================================================
-   * REGION RISK
+   * REGION RISK OPACITY
+   *
+   * regionRisk is expected to look like:
+   *
+   * {
+   *   reg_north: 0.45,
+   *   reg_east: 0.71,
+   *   reg_west: 0.20,
+   *   reg_south: 0.63
+   * }
    * ============================================================
    */
 
@@ -314,10 +366,6 @@ export default function MapView({
     if (Number.isNaN(risk)) {
       return 0.08;
     }
-
-    /*
-     * Clamp between 0 and 1.
-     */
 
     const clampedRisk =
       Math.max(
@@ -341,7 +389,9 @@ export default function MapView({
     facility
   ) => {
     setHoveredFacility(facility);
+
     setFacilityStatuses([]);
+
     setLoadingStatuses(true);
 
     try {
@@ -356,24 +406,11 @@ export default function MapView({
         );
 
       /*
-       * Only display the result if the user
-       * is still hovering the same facility.
+       * Only show data for the facility that
+       * initiated this request.
        */
 
-      if (
-        hoveredFacility?.id ===
-        facility.id
-      ) {
-        setFacilityStatuses(statuses);
-      } else {
-        /*
-         * Because state updates are asynchronous,
-         * use the facility argument as the source
-         * of truth here.
-         */
-
-        setFacilityStatuses(statuses);
-      }
+      setFacilityStatuses(statuses);
     } catch (error) {
       console.error(
         "Failed to load facility statuses:",
@@ -394,6 +431,7 @@ export default function MapView({
 
   const handleFacilityLeave = () => {
     setHoveredFacility(null);
+
     setFacilityStatuses([]);
   };
 
@@ -407,7 +445,7 @@ export default function MapView({
     regionId
   ) => {
     /*
-     * Cancel any pending close.
+     * Cancel pending card close.
      */
 
     clearTimeout(
@@ -415,7 +453,9 @@ export default function MapView({
     );
 
     setHoveredRegion(regionId);
+
     setRegionRisks([]);
+
     setLoadingRegionRisk(true);
 
     try {
@@ -430,16 +470,22 @@ export default function MapView({
         );
 
       /*
-       * Only update if the user is still
-       * hovering this region.
+       * Only display the data if the user
+       * is still on this region.
+       *
+       * We use a functional state check here
+       * to avoid relying on a stale closure.
        */
 
-      if (
-        hoveredRegion === regionId ||
-        hoveredRegion === null
-      ) {
-        setRegionRisks(risks);
-      }
+      setHoveredRegion(
+        (currentRegion) => {
+          if (currentRegion === regionId) {
+            setRegionRisks(risks);
+          }
+
+          return currentRegion;
+        }
+      );
     } catch (error) {
       console.error(
         "Failed to load region risk:",
@@ -456,9 +502,10 @@ export default function MapView({
    * ============================================================
    * REGION LEAVE
    *
-   * We don't immediately close the card.
-   * This gives the mouse enough time to move
-   * from the SVG region into the card.
+   * Do NOT immediately close the card.
+   *
+   * The user needs enough time to move the mouse from the
+   * district into the foreignObject.
    * ============================================================
    */
 
@@ -470,6 +517,7 @@ export default function MapView({
     regionLeaveTimer.current =
       setTimeout(() => {
         setHoveredRegion(null);
+
         setRegionRisks([]);
       }, 300);
   };
@@ -478,8 +526,8 @@ export default function MapView({
    * ============================================================
    * REGION CARD ENTER
    *
-   * Cancel the close timer when the mouse
-   * successfully reaches the card.
+   * The user successfully reached the card,
+   * so cancel the pending close.
    * ============================================================
    */
 
@@ -501,6 +549,7 @@ export default function MapView({
     );
 
     setHoveredRegion(null);
+
     setRegionRisks([]);
   };
 
@@ -536,6 +585,9 @@ export default function MapView({
       case "reg_east":
         return "East Region";
 
+      case "reg_west":
+        return "West Region";
+
       case "reg_south":
         return "South Region";
 
@@ -552,16 +604,19 @@ export default function MapView({
 
   return (
     <div className="map-view card">
+
       <h2 className="heading-text">
         Map View
       </h2>
 
       <div className="map-visualization-wrapper">
+
         <svg
           viewBox="0 0 1000 600"
           xmlns="http://www.w3.org/2000/svg"
           className="medical-city-map"
         >
+
           <defs>
 
             {/* =================================================
@@ -653,26 +708,26 @@ export default function MapView({
           <path
             className="river-underlay"
             d="
-              M -50 250
-              C 300 200,
-                450 350,
-                600 300
-              C 750 250,
-                800 450,
-                1050 400
+              M -50 330
+              C 180 280,
+                300 430,
+                470 360
+              C 620 300,
+                730 430,
+                1050 350
             "
           />
 
           <path
             className="river-core"
             d="
-              M -50 250
-              C 300 200,
-                450 350,
-                600 300
-              C 750 250,
-                800 450,
-                1050 400
+              M -50 330
+              C 180 280,
+                300 430,
+                470 360
+              C 620 300,
+                730 430,
+                1050 350
             "
           />
 
@@ -695,17 +750,22 @@ export default function MapView({
               handleRegionLeave
             }
           >
+
             <path
               d="
                 M 30 30
-                L 500 30
-                L 420 220
-                C 300 210,
-                  150 230,
-                  20 240
+                L 480 30
+                L 455 205
+                C 360 220,
+                  230 225,
+                  120 220
+                C 80 218,
+                  50 220,
+                  20 225
                 Z
               "
             />
+
           </g>
 
           {/* ====================================================
@@ -727,20 +787,63 @@ export default function MapView({
               handleRegionLeave
             }
           >
+
             <path
               d="
-                M 500 30
+                M 480 30
                 L 970 30
-                L 970 320
-                C 850 330,
-                  750 250,
-                  620 280
-                C 510 295,
-                  450 200,
-                  420 190
+                L 970 330
+                C 860 340,
+                  760 300,
+                  660 315
+                C 570 330,
+                  500 275,
+                  455 205
+                L 480 30
                 Z
               "
             />
+
+          </g>
+
+          {/* ====================================================
+              WEST REGION
+          ==================================================== */}
+
+          <g
+            className={`district west-quarter ${
+              hoveredRegion === "reg_west"
+                ? "region-hovered"
+                : ""
+            }`}
+            onMouseEnter={() =>
+              handleRegionHover(
+                "reg_west"
+              )
+            }
+            onMouseLeave={
+              handleRegionLeave
+            }
+          >
+
+            <path
+              d="
+                M 20 225
+                C 100 220,
+                  250 225,
+                  455 205
+                C 475 250,
+                  500 300,
+                  530 350
+                C 500 370,
+                  475 385,
+                  455 395
+                L 30 395
+                Z
+              "
+              fill="#e8f1f8"
+            />
+
           </g>
 
           {/* ====================================================
@@ -762,38 +865,43 @@ export default function MapView({
               handleRegionLeave
             }
           >
+
             <path
               d="
-                M 20 240
-                C 150 230,
-                  300 210,
-                  420 190
-                C 450 200,
-                  510 295,
-                  620 280
-                C 750 250,
-                  850 330,
-                  970 320
+                M 30 395
+                L 455 395
+                C 480 385,
+                  500 370,
+                  530 350
+                C 650 330,
+                  800 345,
+                  970 330
                 L 970 570
                 L 30 570
                 Z
               "
             />
+
           </g>
 
           {/* ====================================================
               REGION RISK OVERLAYS
           ==================================================== */}
 
+          {/* NORTH */}
+
           <path
             className="risk-overlay north-risk"
             d="
               M 30 30
-              L 500 30
-              L 420 220
-              C 300 210,
-                150 230,
-                20 240
+              L 480 30
+              L 455 205
+              C 360 220,
+                230 225,
+                120 220
+              C 80 218,
+                50 220,
+                20 225
               Z
             "
             opacity={getRiskOpacity(
@@ -801,18 +909,21 @@ export default function MapView({
             )}
           />
 
+          {/* EAST */}
+
           <path
             className="risk-overlay east-risk"
             d="
-              M 500 30
+              M 480 30
               L 970 30
-              L 970 320
-              C 850 330,
-                750 250,
-                620 280
-              C 510 295,
-                450 200,
-                420 190
+              L 970 330
+              C 860 340,
+                760 300,
+                660 315
+              C 570 330,
+                500 275,
+                455 205
+              L 480 30
               Z
             "
             opacity={getRiskOpacity(
@@ -820,19 +931,42 @@ export default function MapView({
             )}
           />
 
+          {/* WEST */}
+
+          <path
+            className="risk-overlay west-risk"
+            d="
+              M 20 225
+              C 100 220,
+                250 225,
+                455 205
+              C 475 250,
+                500 300,
+                530 350
+              C 500 370,
+                475 385,
+                455 395
+              L 30 395
+              Z
+            "
+            opacity={getRiskOpacity(
+              "reg_west"
+            )}
+          />
+
+          {/* SOUTH */}
+
           <path
             className="risk-overlay south-risk"
             d="
-              M 20 240
-              C 150 230,
-                300 210,
-                420 190
-              C 450 200,
-                510 295,
-                620 280
-              C 750 250,
-                850 330,
-                970 320
+              M 30 395
+              L 455 395
+              C 480 385,
+                500 370,
+                530 350
+              C 650 330,
+                800 345,
+                970 330
               L 970 570
               L 30 570
               Z
@@ -851,283 +985,368 @@ export default function MapView({
             {/* ================= NORTH ================= */}
 
             <g className="b-block">
+
               <rect
-                x={80}
-                y={60}
-                width={40}
-                height={50}
+                x={60}
+                y={55}
+                width={55}
+                height={45}
                 rx={3}
               />
 
               <rect
                 x={130}
-                y={60}
-                width={35}
+                y={55}
+                width={45}
                 height={35}
                 rx={3}
               />
 
               <rect
-                x={80}
-                y={120}
-                width={85}
+                x={70}
+                y={115}
+                width={95}
                 height={40}
                 rx={3}
               />
 
               <rect
-                x={180}
-                y={60}
+                x={190}
+                y={55}
                 width={50}
                 height={100}
                 rx={3}
               />
 
               <rect
-                x={250}
-                y={70}
-                width={60}
+                x={260}
+                y={65}
+                width={65}
                 height={60}
                 rx={3}
               />
 
               <rect
-                x={320}
-                y={70}
-                width={40}
+                x={340}
+                y={65}
+                width={55}
                 height={80}
                 rx={3}
               />
 
               <rect
                 x={100}
-                y={180}
-                width={45}
+                y={175}
+                width={50}
                 height={30}
                 rx={3}
               />
 
               <rect
-                x={160}
-                y={180}
-                width={70}
+                x={170}
+                y={175}
+                width={75}
                 height={30}
                 rx={3}
               />
+
+              <rect
+                x={280}
+                y={160}
+                width={100}
+                height={40}
+                rx={3}
+              />
+
             </g>
 
             {/* ================= EAST ================= */}
 
             <g className="b-block">
+
               <rect
-                x={540}
-                y={60}
+                x={530}
+                y={55}
                 width={120}
                 height={25}
               />
 
               <rect
-                x={540}
-                y={95}
+                x={530}
+                y={90}
                 width={120}
                 height={25}
               />
 
               <rect
-                x={680}
-                y={60}
+                x={675}
+                y={55}
                 width={80}
                 height={30}
               />
 
               <rect
                 x={770}
-                y={60}
+                y={55}
                 width={80}
                 height={30}
               />
 
               <rect
-                x={860}
-                y={60}
-                width={90}
+                x={865}
+                y={55}
+                width={80}
                 height={40}
               />
 
               <rect
-                x={620}
-                y={150}
+                x={570}
+                y={145}
                 width={45}
-                height={80}
+                height={90}
               />
 
               <rect
-                x={680}
-                y={150}
+                x={635}
+                y={145}
                 width={45}
-                height={80}
+                height={90}
               />
 
               <rect
-                x={740}
-                y={150}
+                x={700}
+                y={145}
                 width={45}
-                height={80}
+                height={90}
               />
 
               <rect
-                x={820}
+                x={765}
                 y={140}
                 width={110}
                 height={50}
               />
 
+              <rect
+                x={885}
+                y={140}
+                width={55}
+                height={90}
+              />
+
               <path
                 d="
-                  M 860 210
-                  L 940 210
-                  L 920 260
-                  L 860 260
+                  M 820 220
+                  L 940 220
+                  L 920 280
+                  L 820 280
                   Z
                 "
               />
+
+            </g>
+
+            {/* ================= WEST ================= */}
+
+            <g className="b-block">
+
+              <rect
+                x={55}
+                y={250}
+                width={70}
+                height={35}
+                rx={3}
+              />
+
+              <rect
+                x={140}
+                y={250}
+                width={45}
+                height={60}
+                rx={3}
+              />
+
+              <rect
+                x={200}
+                y={245}
+                width={85}
+                height={45}
+                rx={3}
+              />
+
+              <rect
+                x={300}
+                y={245}
+                width={55}
+                height={70}
+                rx={3}
+              />
+
+              <rect
+                x={375}
+                y={235}
+                width={55}
+                height={50}
+                rx={3}
+              />
+
+              <rect
+                x={70}
+                y={325}
+                width={45}
+                height={45}
+                rx={3}
+              />
+
+              <rect
+                x={130}
+                y={330}
+                width={90}
+                height={35}
+                rx={3}
+              />
+
+              <rect
+                x={245}
+                y={325}
+                width={55}
+                height={50}
+                rx={3}
+              />
+
+              <rect
+                x={325}
+                y={330}
+                width={100}
+                height={40}
+                rx={3}
+              />
+
             </g>
 
             {/* ================= SOUTH ================= */}
 
             <g className="b-block">
-              <rect
-                x={60}
-                y={280}
-                width={25}
-                height={25}
-              />
-
-              <rect
-                x={90}
-                y={280}
-                width={25}
-                height={25}
-              />
-
-              <rect
-                x={120}
-                y={280}
-                width={25}
-                height={25}
-              />
 
               <rect
                 x={60}
-                y={315}
-                width={25}
-                height={25}
+                y={425}
+                width={30}
+                height={30}
               />
 
               <rect
-                x={90}
-                y={315}
-                width={25}
-                height={25}
+                x={100}
+                y={425}
+                width={30}
+                height={30}
               />
 
               <rect
-                x={120}
-                y={315}
-                width={25}
-                height={25}
+                x={140}
+                y={425}
+                width={30}
+                height={30}
               />
 
               <rect
-                x={180}
-                y={280}
-                width={80}
+                x={60}
+                y={465}
+                width={30}
+                height={30}
+              />
+
+              <rect
+                x={100}
+                y={465}
+                width={30}
+                height={30}
+              />
+
+              <rect
+                x={140}
+                y={465}
+                width={30}
+                height={30}
+              />
+
+              <rect
+                x={195}
+                y={425}
+                width={85}
                 height={60}
               />
 
               <rect
-                x={270}
-                y={280}
-                width={90}
+                x={300}
+                y={425}
+                width={100}
                 height={40}
               />
 
               <rect
                 x={70}
-                y={370}
-                width={110}
-                height={70}
-              />
-
-              <rect
-                x={195}
-                y={370}
-                width={45}
-                height={45}
-              />
-
-              <rect
-                x={250}
-                y={370}
-                width={120}
+                y={510}
+                width={100}
                 height={50}
               />
 
               <rect
-                x={80}
-                y={460}
-                width={50}
-                height={90}
+                x={195}
+                y={505}
+                width={60}
+                height={50}
               />
 
               <rect
-                x={140}
-                y={460}
-                width={70}
-                height={40}
-              />
-
-              <rect
-                x={220}
-                y={460}
-                width={150}
-                height={90}
+                x={275}
+                y={500}
+                width={130}
+                height={60}
               />
 
               <rect
                 x={480}
+                y={430}
+                width={80}
+                height={100}
+              />
+
+              <rect
+                x={580}
+                y={425}
+                width={110}
+                height={45}
+              />
+
+              <rect
+                x={715}
+                y={425}
+                width={55}
+                height={50}
+              />
+
+              <rect
+                x={795}
                 y={420}
                 width={80}
                 height={110}
               />
 
               <rect
-                x={580}
-                y={420}
-                width={110}
-                height={50}
-              />
-
-              <rect
-                x={710}
-                y={420}
-                width={50}
-                height={50}
-              />
-
-              <rect
-                x={770}
-                y={420}
-                width={80}
-                height={120}
-              />
-
-              <rect
-                x={580}
-                y={480}
+                x={590}
+                y={490}
                 width={170}
-                height={60}
+                height={65}
               />
+
+              <rect
+                x={890}
+                y={445}
+                width={55}
+                height={100}
+              />
+
             </g>
 
           </g>
@@ -1138,36 +1357,44 @@ export default function MapView({
 
           <g className="road-network">
 
+            {/* North horizontal artery */}
+
             <path
               className="main-artery"
               d="
                 M 30 170
-                L 430 170
-                L 590 315
+                L 455 170
+                L 600 315
                 L 970 315
               "
             />
 
-            <path
-              className="main-artery"
-              d="
-                M 434 30
-                L 434 170
-                L 452 230
-                L 460 410
-                L 460 570
-              "
-            />
+            {/* Central vertical artery */}
 
             <path
               className="main-artery"
               d="
-                M 245 30
-                L 245 270
-                L 70 270
-                L 70 570
+                M 460 30
+                L 460 205
+                L 490 270
+                L 500 395
+                L 500 570
               "
             />
+
+            {/* West vertical artery */}
+
+            <path
+              className="main-artery"
+              d="
+                M 250 30
+                L 250 220
+                L 250 395
+                L 250 570
+              "
+            />
+
+            {/* East vertical artery */}
 
             <path
               className="main-artery"
@@ -1178,71 +1405,108 @@ export default function MapView({
               "
             />
 
-            {/* Secondary streets */}
+            {/* South horizontal artery */}
+
+            <path
+              className="main-artery"
+              d="
+                M 30 470
+                L 500 470
+                L 700 470
+                L 970 470
+              "
+            />
+
+            {/* ==================================================
+                SECONDARY STREETS
+            ================================================== */}
+
+            {/* North */}
 
             <path
               className="local-street"
-              d="M 80 115 L 245 115"
+              d="M 70 110 L 250 110"
             />
 
             <path
               className="local-street"
-              d="M 170 115 L 170 170"
+              d="M 170 110 L 170 170"
             />
 
             <path
               className="local-street"
-              d="M 245 65 L 434 65"
+              d="M 250 70 L 460 70"
             />
 
             <path
               className="local-street"
-              d="M 370 65 L 370 170"
+              d="M 370 70 L 370 170"
+            />
+
+            {/* East */}
+
+            <path
+              className="local-street"
+              d="M 530 130 L 700 130"
             />
 
             <path
               className="local-street"
-              d="M 540 135 L 700 135"
+              d="M 650 30 L 650 130"
             />
 
             <path
               className="local-street"
-              d="M 670 30 L 670 135"
+              d="M 700 110 L 970 110"
             />
 
             <path
               className="local-street"
-              d="M 700 115 L 970 115"
+              d="M 820 110 L 820 315"
+            />
+
+            {/* West */}
+
+            <path
+              className="local-street"
+              d="M 55 315 L 250 315"
             />
 
             <path
               className="local-street"
-              d="M 810 115 L 810 315"
+              d="M 150 250 L 150 395"
             />
 
             <path
               className="local-street"
-              d="M 70 355 L 460 355"
+              d="M 250 280 L 455 280"
             />
 
             <path
               className="local-street"
-              d="M 195 270 L 195 460"
+              d="M 350 220 L 350 395"
+            />
+
+            {/* South */}
+
+            <path
+              className="local-street"
+              d="M 70 400 L 70 570"
             />
 
             <path
               className="local-street"
-              d="M 70 450 L 220 450"
+              d="M 180 400 L 180 570"
             />
 
             <path
               className="local-street"
-              d="M 380 355 L 380 570"
+              d="M 350 400 L 350 570"
             />
 
             <path
               className="local-street"
-              d="M 460 410 L 700 410"
+              d="M 500 400 L 500 570"
             />
 
             <path
@@ -1252,7 +1516,17 @@ export default function MapView({
 
             <path
               className="local-street"
-              d="M 700 475 L 970 475"
+              d="M 700 400 L 700 570"
+            />
+
+            <path
+              className="local-street"
+              d="M 850 400 L 850 570"
+            />
+
+            <path
+              className="local-street"
+              d="M 700 525 L 970 525"
             />
 
           </g>
@@ -1262,10 +1536,10 @@ export default function MapView({
           ==================================================== */}
 
           <rect
-            x={424}
-            y={180}
-            width={20}
-            height={25}
+            x={447}
+            y={195}
+            width={22}
+            height={28}
             fill="#78909c"
             stroke="#37474f"
             strokeWidth={1}
@@ -1273,13 +1547,13 @@ export default function MapView({
 
           <rect
             x={520}
-            y={245}
-            width={28}
+            y={330}
+            width={30}
             height={20}
             fill="#78909c"
             stroke="#37474f"
             strokeWidth={1}
-            transform="rotate(42, 520, 245)"
+            transform="rotate(42, 520, 330)"
           />
 
           {/* ====================================================
@@ -1289,8 +1563,8 @@ export default function MapView({
           <g className="map-ui-labels">
 
             <text
-              x={230}
-              y={50}
+              x={210}
+              y={55}
               className="label-heading"
             >
               NORTH REGION
@@ -1298,15 +1572,23 @@ export default function MapView({
 
             <text
               x={720}
-              y={50}
+              y={55}
               className="label-heading"
             >
               EAST REGION
             </text>
 
             <text
-              x={230}
-              y={585}
+              x={205}
+              y={250}
+              className="label-heading"
+            >
+              WEST REGION
+            </text>
+
+            <text
+              x={430}
+              y={555}
               className="label-heading"
             >
               SOUTH REGION
@@ -1321,6 +1603,7 @@ export default function MapView({
           <g className="facility-layer">
 
             {facilities.map((facility) => {
+
               const {
                 x,
                 y,
@@ -1347,11 +1630,13 @@ export default function MapView({
                 <g
                   key={facility.id}
                   className="facility-marker"
+
                   onMouseEnter={() =>
                     handleFacilityHover(
                       facility
                     )
                   }
+
                   onMouseLeave={
                     handleFacilityLeave
                   }
@@ -1439,11 +1724,12 @@ export default function MapView({
           </g>
 
           {/* ====================================================
-              MEDICINE STATUS HOVER CARD
+              FACILITY STATUS HOVER CARD
           ==================================================== */}
 
           {hoveredFacility && (
             (() => {
+
               const {
                 x,
                 y,
@@ -1459,7 +1745,7 @@ export default function MapView({
               let cardY = y - 100;
 
               /*
-               * Keep card inside right edge.
+               * Keep inside right edge.
                */
 
               if (
@@ -1472,7 +1758,7 @@ export default function MapView({
               }
 
               /*
-               * Keep card inside top edge.
+               * Keep inside top edge.
                */
 
               if (cardY < 10) {
@@ -1480,7 +1766,7 @@ export default function MapView({
               }
 
               /*
-               * Keep card inside bottom edge.
+               * Keep inside bottom edge.
                */
 
               if (
@@ -1500,20 +1786,29 @@ export default function MapView({
                   className="facility-status-foreign-object"
                   pointerEvents="none"
                 >
+
                   <div className="facility-status-card">
 
-                    {/* CARD HEADER */}
+                    {/* HEADER */}
 
                     <div className="facility-status-header">
 
                       <div className="facility-status-icon">
+
                         {hoveredFacility.type ===
                         "hospital"
                           ? "H"
                           : hoveredFacility.type ===
                             "clinic"
                           ? "C"
-                          : "P"}
+                          : hoveredFacility.type ===
+                            "pharmacy"
+                          ? "P"
+                          : hoveredFacility.type ===
+                            "warehouse"
+                          ? "W"
+                          : "F"}
+
                       </div>
 
                       <div className="facility-status-heading">
@@ -1547,18 +1842,29 @@ export default function MapView({
                     <div className="facility-status-list">
 
                       {loadingStatuses ? (
+
                         <div className="facility-status-loading">
+
                           <div className="loading-spinner" />
+
                           Loading medicine status...
+
                         </div>
+
                       ) : facilityStatuses.length ===
                         0 ? (
+
                         <div className="facility-status-loading">
+
                           No status data available.
+
                         </div>
+
                       ) : (
+
                         facilityStatuses.map(
                           (status) => {
+
                             const medicineName =
                               getMedicineName(
                                 status.medicine_id
@@ -1579,11 +1885,13 @@ export default function MapView({
                               >
 
                                 <div className="medicine-info">
+
                                   <div className="medicine-name">
                                     {
                                       medicineName
                                     }
                                   </div>
+
                                 </div>
 
                                 <div
@@ -1593,6 +1901,7 @@ export default function MapView({
                                       statusColor,
                                   }}
                                 >
+
                                   <span
                                     className="status-dot"
                                     style={{
@@ -1604,12 +1913,14 @@ export default function MapView({
                                   {
                                     status.status
                                   }
+
                                 </div>
 
                               </div>
                             );
                           }
                         )
+
                       )}
 
                     </div>
@@ -1619,6 +1930,7 @@ export default function MapView({
                     {!loadingStatuses &&
                       facilityStatuses.length >
                         0 && (
+
                         <div className="status-mini-legend">
 
                           <span>
@@ -1662,9 +1974,11 @@ export default function MapView({
                           </span>
 
                         </div>
+
                       )}
 
                   </div>
+
                 </foreignObject>
               );
             })()
@@ -1676,32 +1990,38 @@ export default function MapView({
 
           {hoveredRegion && (
             (() => {
+
+              /*
+               * Position the card differently for each region
+               * so it doesn't cover the entire map.
+               */
+
               let cardX = 40;
-              let cardY = 70;
+              let cardY = 65;
 
               if (
                 hoveredRegion ===
                 "reg_east"
               ) {
-                cardX = 640;
-                cardY = 70;
+                cardX = 650;
+                cardY = 65;
+              }
+
+              if (
+                hoveredRegion ===
+                "reg_west"
+              ) {
+                cardX = 40;
+                cardY = 225;
               }
 
               if (
                 hoveredRegion ===
                 "reg_south"
               ) {
-                cardX = 40;
-                cardY = 250;
+                cardX = 560;
+                cardY = 245;
               }
-
-              /*
-               * Card dimensions.
-               *
-               * The content area is scrollable,
-               * so the card does not need to grow
-               * with the number of medicines.
-               */
 
               const cardWidth = 300;
               const cardHeight = 320;
@@ -1716,11 +2036,12 @@ export default function MapView({
 
                   /*
                    * IMPORTANT:
-                   * Do NOT use pointerEvents="none".
                    *
-                   * The card needs to receive mouse
-                   * events so that the user can move
-                   * into it and scroll.
+                   * There is intentionally NO
+                   * pointerEvents="none" here.
+                   *
+                   * The card needs to receive mouse events
+                   * so the user can move into it and scroll.
                    */
 
                   onMouseEnter={
@@ -1734,7 +2055,9 @@ export default function MapView({
 
                   <div className="region-risk-card">
 
-                    {/* HEADER */}
+                    {/* =================================================
+                        HEADER
+                    ================================================= */}
 
                     <div className="region-risk-header">
 
@@ -1760,23 +2083,36 @@ export default function MapView({
 
                     <div className="region-risk-divider" />
 
-                    {/* CONTENT */}
+                    {/* =================================================
+                        MEDICINE RISK LIST
+                    ================================================= */}
 
                     <div className="region-risk-list">
 
                       {loadingRegionRisk ? (
+
                         <div className="region-risk-loading">
+
                           <div className="loading-spinner" />
+
                           Loading regional risk...
+
                         </div>
+
                       ) : regionRisks.length ===
                         0 ? (
+
                         <div className="region-risk-loading">
+
                           No risk data available.
+
                         </div>
+
                       ) : (
+
                         regionRisks.map(
                           (risk) => (
+
                             <div
                               key={
                                 risk.medicine_id
@@ -1793,42 +2129,56 @@ export default function MapView({
                                 </div>
 
                                 <div className="region-risk-at-risk">
+
                                   {
                                     risk.facilities_at_risk
                                   }
+
                                   {" / "}
+
                                   {
                                     risk.total_facilities
                                   }
+
                                   {" facilities at risk"}
+
                                 </div>
 
                               </div>
 
                               <div className="region-risk-score">
+
                                 {(
                                   Number(
                                     risk.regional_risk_score
                                   ) * 100
                                 ).toFixed(0)}
+
                                 %
+
                               </div>
 
                             </div>
+
                           )
                         )
+
                       )}
 
                     </div>
 
-                    {/* SUMMARY */}
+                    {/* =================================================
+                        SUMMARY
+                    ================================================= */}
 
                     {!loadingRegionRisk &&
                       regionRisks.length >
                         0 && (
+
                         <div className="region-risk-summary">
 
                           <div>
+
                             <span>
                               Medicines tracked
                             </span>
@@ -1838,14 +2188,17 @@ export default function MapView({
                                 regionRisks.length
                               }
                             </strong>
+
                           </div>
 
                           <div>
+
                             <span>
                               Overall trend
                             </span>
 
                             <strong>
+
                               {regionRisks.some(
                                 (risk) =>
                                   risk.trend_direction ===
@@ -1859,10 +2212,13 @@ export default function MapView({
                                   )
                                 ? "Improving"
                                 : "Stable"}
+
                             </strong>
+
                           </div>
 
                         </div>
+
                       )}
 
                   </div>
@@ -1878,23 +2234,25 @@ export default function MapView({
 
           <g
             className="map-legend"
-            transform="translate(760, 520)"
+            transform="translate(755, 505)"
           >
 
             <rect
               x={0}
               y={0}
-              width={190}
-              height={65}
+              width={200}
+              height={85}
               rx={8}
               fill="white"
               opacity={0.92}
               stroke="#cbd5e1"
             />
 
+            {/* Hospital */}
+
             <circle
               cx={20}
-              cy={20}
+              cy={18}
               r={7}
               fill="#dc2626"
               stroke="white"
@@ -1903,15 +2261,17 @@ export default function MapView({
 
             <text
               x={35}
-              y={24}
+              y={22}
               className="legend-text"
             >
               Hospital
             </text>
 
+            {/* Clinic */}
+
             <circle
-              cx={100}
-              cy={20}
+              cx={105}
+              cy={18}
               r={7}
               fill="#2563eb"
               stroke="white"
@@ -1919,16 +2279,18 @@ export default function MapView({
             />
 
             <text
-              x={115}
-              y={24}
+              x={120}
+              y={22}
               className="legend-text"
             >
               Clinic
             </text>
 
+            {/* Pharmacy */}
+
             <circle
               cx={20}
-              cy={45}
+              cy={43}
               r={7}
               fill="#16a34a"
               stroke="white"
@@ -1937,15 +2299,36 @@ export default function MapView({
 
             <text
               x={35}
-              y={49}
+              y={47}
               className="legend-text"
             >
               Pharmacy
             </text>
 
+            {/* Warehouse */}
+
+            <circle
+              cx={105}
+              cy={43}
+              r={7}
+              fill="#9333ea"
+              stroke="white"
+              strokeWidth={2}
+            />
+
             <text
-              x={115}
-              y={49}
+              x={120}
+              y={47}
+              className="legend-text"
+            >
+              Warehouse
+            </text>
+
+            {/* Facility count */}
+
+            <text
+              x={20}
+              y={72}
               className="legend-text"
             >
               {facilities.length} facilities
@@ -1954,7 +2337,10 @@ export default function MapView({
           </g>
 
         </svg>
+
       </div>
+
     </div>
   );
 }
+
