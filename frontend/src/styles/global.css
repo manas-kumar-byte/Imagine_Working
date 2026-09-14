@@ -68,6 +68,21 @@
   justify-content: space-around;
   width: 100vw;
 }
+.facility-details{
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  margin: 5%;
+  width: 45%;
+	height: 100vh;
+  border-radius: 20px;
+  overflow: scroll;
+}
+.facility-page{
+  display: flex;
+  flex-flow: row;
+  justify-content: space-between;
+}
 .medical-city-map {
   width: 100%;
   display: block;
