@@ -5,6 +5,7 @@ Owner: Recommendation Engineer
 from backend.explainability import data_access as da
 from backend.models.RedistributionRecommendation import RedistributionRecommendation
 from backend.recommendation.surplus_finder import find_surplus_facilities
+from backend.models.medicine import Medicine
 
 # Search progressively wider if nothing found nearby — keeps the demo from
 # returning an empty list just because the radius was too tight.
@@ -68,6 +69,7 @@ def recommend_redistribution(deficit_facility_id: str, medicine_id: str) -> list
 
         recommendations.append({
             "source_facility_id": cand["facility_id"],
+            "medicine_id": medicine_id,
             "quantity": quantity,
             "distance_km": cand["distance_km"],
             "urgency_score": urgency,
