@@ -42,7 +42,10 @@ export default function RecommendationPanel({ recommendations, rec_loaded, from 
 
         </div>
       )):(
-        <p>Loading...</p>
+        <div className="recommendation-loading-spinner">
+            <div className="recommendation-spinner"></div>
+            <p>Loading recommendations...</p>
+      </div>
       )}
 
     </div>
