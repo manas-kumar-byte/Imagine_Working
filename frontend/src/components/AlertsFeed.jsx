@@ -1,11 +1,11 @@
 // Chronological feed from GET /alerts (detect_emerging_shortage output).
 // Owner: Frontend/Product Lead
-export default function AlertsFeed({ alerts }) {
+export default function AlertsFeed({ alerts, alert_loaded }) {
   return (
     <div className="alerts-feed card">
       <h2 className="heading-text">Alerts Feed</h2>
       {/* TODO: render alerts list, sorted by regional_risk_score */}
-      {alerts.length === 0? (<p>No alerts</p>):(
+      {alert_loaded===true?(alerts.length === 0? (<p>No alerts</p>):(
         alerts.map((alert, index) => (
         <div key="index" className="alert-item">
           <p>Region: {alert.region_id}</p>
@@ -14,6 +14,11 @@ export default function AlertsFeed({ alerts }) {
           <p>Spread: {alert.spread_rate}</p>
         </div>
       ))
+      )):(
+        <div className="recommendation-loading-spinner">
+            <div className="recommendation-spinner"></div>
+            <p>Loading Alerts...</p>
+      </div>
       )}
       
     </div>

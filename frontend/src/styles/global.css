@@ -806,3 +806,196 @@
 
     display: inline-block;
 }
+
+.region-risk-foreign-object {
+  overflow: visible;
+}
+
+.region-risk-card {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+
+  padding: 16px;
+
+  box-shadow:
+    0 10px 25px rgba(15, 23, 42, 0.18);
+
+  font-family: inherit;
+}
+
+.region-risk-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.region-risk-icon {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: #2563eb;
+  color: white;
+
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.region-risk-heading {
+  min-width: 0;
+}
+
+.region-risk-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.region-risk-subtitle {
+  margin-top: 3px;
+
+  font-size: 12px;
+  color: #64748b;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.region-risk-divider {
+  height: 1px;
+
+  background: #e2e8f0;
+
+  margin: 14px 0;
+}
+
+.region-risk-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.region-risk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 9px 10px;
+
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.region-risk-medicine {
+  min-width: 0;
+}
+
+.region-risk-medicine-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.region-risk-at-risk {
+  margin-top: 3px;
+
+  font-size: 11px;
+  color: #64748b;
+}
+
+.region-risk-score {
+  font-size: 15px;
+  font-weight: 700;
+
+  color: #dc2626;
+}
+
+.region-risk-loading {
+  min-height: 120px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  color: #64748b;
+  font-size: 12px;
+}
+
+.region-risk-summary {
+  display: flex;
+  justify-content: space-between;
+
+  margin-top: 12px;
+  padding-top: 10px;
+
+  border-top: 1px solid #e2e8f0;
+}
+
+.region-risk-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.region-risk-summary span {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.region-risk-summary strong {
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.district {
+  transition:
+    fill 0.25s ease,
+    filter 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.district.region-hovered {
+  filter: url(#active-district);
+  opacity: 1;
+}
+.high-quarter {
+  fill: #dbeafe;
+}
+
+.iron-docks {
+  fill: #dcfce7;
+}
+
+.foundry-commons {
+  fill: #fef3c7;
+}
+
+.high-quarter.region-hovered {
+  fill: #93c5fd;
+}
+
+.iron-docks.region-hovered {
+  fill: #86efac;
+}
+
+.foundry-commons.region-hovered {
+  fill: #fde68a;
+}

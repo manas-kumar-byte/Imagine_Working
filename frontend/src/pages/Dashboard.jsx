@@ -14,11 +14,13 @@ export default function Dashboard() {
    const [medicines, setMedicines] = useState([]);
    const [alerts, setAlerts] = useState([]);
    const [rec_loaded, setRecLoaded] = useState(false);
+   const [alert_loaded, setAlertLoaded] = useState(false);
      useEffect(() => {
        async function loadAlerts() {
          try{
            const data = await getAlerts();
            setAlerts(data);
+           setAlerts(true);
          }
          catch(error) {
            console.error("Failed to load alerts: ", error);
@@ -84,7 +86,7 @@ export default function Dashboard() {
       <h1 className="heading-text">Dashboard</h1>
       <MapView facilities={facilities}/>
       <div className="alert-n-recommendation">
-          <AlertsFeed alerts={alerts}/>
+          <AlertsFeed alerts={alerts} alert_loaded={alert_loaded}/>
           <RecommendationPanel recommendations={sortedRecommendations} rec_loaded={rec_loaded} from="Dashboard"/>
       
       </div>
