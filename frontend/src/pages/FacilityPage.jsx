@@ -19,6 +19,7 @@ export default function FacilityPage() {
   const { id } = useParams()
   const [medicines, setMedicines] = useState([]);
   const [recommendation, setRecommendations] = useState([]);
+  
   useEffect(() => 
     { 
       if (medicines.length === 0) { 

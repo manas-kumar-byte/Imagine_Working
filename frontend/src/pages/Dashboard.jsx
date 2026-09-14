@@ -3,8 +3,7 @@ import AlertsFeed from "../components/AlertsFeed"
 import RecommendationPanel from "../components/RecommendationPanel"
 import {getFacilities} from "../api/client";
 import {getRegionRisk} from "../api/client";
-import { getRecommendations } from "../api/client";
-import { getMedicines } from "../api/client";
+import { getRecommendations, getMedicines, getAlerts } from "../api/client";
 import { useState, useEffect } from "react";
 
 // Top-level dashboard: MapView + AlertsFeed + RecommendationPanel.
@@ -13,6 +12,19 @@ export default function Dashboard() {
    const [facilities, setFacilities] = useState([]);
    const [recommendations, setRecomendations] = useState([]);
    const [medicines, setMedicines] = useState([]);
+   const [alerts, setAlerts] = useState([]);
+     useEffect(() => {
+       async function loadAlerts() {
+         try{
+           const data = await getAlerts();
+           setAlerts(data);
+         }
+         catch(error) {
+           console.error("Failed to load alerts: ", error);
+         }
+       }
+       loadAlerts();
+     }, []);
     useEffect(() => {
         async function loadFacilities() {
             const data = await getFacilities();
@@ -69,7 +81,7 @@ export default function Dashboard() {
       <h1 className="heading-text">Dashboard</h1>
       <MapView facilities={facilities}/>
       <div className="alert-n-recommendation">
-          <AlertsFeed/>
+          <AlertsFeed alerts={alerts}/>
           <RecommendationPanel recommendations={sortedRecommendations}/>
       
       </div>

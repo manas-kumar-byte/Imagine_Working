@@ -38,11 +38,13 @@
 
 .alerts-feed {
   display: flex;
+  flex-flow: column;
   justify-content: center;
   margin: 5%;
   width: 45%;
 	height: 100vh;
   border-radius: 20px;
+  overflow: scroll;
 }
 .recommendation-panel {
   display: flex;
@@ -57,8 +59,13 @@
 .recommendation-item{
   background-color: #FFEBCC;
 }
+.alert-item{
+  align-content: center;
+  width: 100%;
+}
 .heading-text{
   font-family: Quicksand;
+  align-self: center;
   color: black;
 }
 .alert-n-recommendation{
