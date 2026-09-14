@@ -71,6 +71,7 @@ export default function Dashboard() {
       <div className="alert-n-recommendation">
           <AlertsFeed/>
           <RecommendationPanel recommendations={sortedRecommendations}/>
+      
       </div>
     </div>
   );

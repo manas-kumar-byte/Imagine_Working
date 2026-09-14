@@ -5,14 +5,13 @@ export default function RecommendationPanel({ recommendations }) {
 
   return (
     <div className="recommendation-panel card">
-
+      <h2 className="heading-text">Recommendation Panel</h2>
       
 
       {recommendations.length === 0 ? (
         <p>Loading...</p>
       ) : (
         <div className="recommendation-list">
-
           {recommendations.map((recommendation, index) => (
 
             <div
