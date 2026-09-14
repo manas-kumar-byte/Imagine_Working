@@ -63,7 +63,7 @@ def _row_to_medicine(row: "pd.Series") -> Medicine:
 
         essential_flag=bool(row["essential_flag"]),
 
-        substitute_ids=[] if pd.isna(row["substitute_ids"]) else list(row["substitute_ids"]),
+        substitute_ids=[],
 
     )
 

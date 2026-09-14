@@ -3,8 +3,7 @@ import AlertsFeed from "../components/AlertsFeed"
 import RecommendationPanel from "../components/RecommendationPanel"
 import {getFacilities} from "../api/client";
 import {getRegionRisk} from "../api/client";
-import { getRecommendations } from "../api/client";
-import { getMedicines } from "../api/client";
+import { getRecommendations, getMedicines, getAlerts } from "../api/client";
 import { useState, useEffect } from "react";
 
 // Top-level dashboard: MapView + AlertsFeed + RecommendationPanel.
@@ -13,6 +12,20 @@ export default function Dashboard() {
    const [facilities, setFacilities] = useState([]);
    const [recommendations, setRecomendations] = useState([]);
    const [medicines, setMedicines] = useState([]);
+   const [alerts, setAlerts] = useState([]);
+   const [rec_loaded, setRecLoaded] = useState(false);
+     useEffect(() => {
+       async function loadAlerts() {
+         try{
+           const data = await getAlerts();
+           setAlerts(data);
+         }
+         catch(error) {
+           console.error("Failed to load alerts: ", error);
+         }
+       }
+       loadAlerts();
+     }, []);
     useEffect(() => {
         async function loadFacilities() {
             const data = await getFacilities();
@@ -53,12 +66,14 @@ export default function Dashboard() {
                     const results = await Promise.all(requests); 
                     const data = results.flat(); 
                     setRecomendations(data); 
+                    setRecLoaded(true);
                   } 
                   catch (error) { 
                     console.error( "Failed to load recommendations:", error ); 
                   } 
                 } 
                 loadRecommendations(); 
+                
               }, [facilities, medicines]);
   const sortedRecommendations = [...recommendations]
   .sort((a, b) => b.urgency_score - a.urgency_score);
@@ -69,8 +84,8 @@ export default function Dashboard() {
       <h1 className="heading-text">Dashboard</h1>
       <MapView facilities={facilities}/>
       <div className="alert-n-recommendation">
-          <AlertsFeed/>
-          <RecommendationPanel recommendations={sortedRecommendations}/>
+          <AlertsFeed alerts={alerts}/>
+          <RecommendationPanel recommendations={sortedRecommendations} rec_loaded={rec_loaded} from="Dashboard"/>
       
       </div>
     </div>
