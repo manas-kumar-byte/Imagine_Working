@@ -440,63 +440,40 @@ export default function MapView({
    * REGION HOVER
    * ============================================================
    */
+  const regionHoverIdRef = useRef(null);
+  const handleRegionHover = async (regionId) => {
+  regionHoverIdRef.current = regionId;
 
-  const handleRegionHover = async (
-    regionId
-  ) => {
-    /*
-     * Cancel pending card close.
-     */
+  setHoveredRegion(regionId);
+  setRegionRisks([]);
+  setLoadingRegionRisk(true);
 
-    clearTimeout(
-      regionLeaveTimer.current
+  try {
+    const results = await Promise.allSettled(
+      medicines.map((medicine) =>
+        getRegionRisk(regionId, medicine.id)
+      )
     );
 
-    setHoveredRegion(regionId);
+    // Ignore response if mouse has already moved to another region
+    if (regionHoverIdRef.current !== regionId) {
+      return;
+    }
 
+    const risks = results
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value);
+
+    setRegionRisks(risks);
+  } catch (error) {
+    console.error("Failed to load region risk:", error);
     setRegionRisks([]);
-
-    setLoadingRegionRisk(true);
-
-    try {
-      const risks =
-        await Promise.all(
-          medicines.map((medicine) =>
-            getRegionRisk(
-              regionId,
-              medicine.id
-            )
-          )
-        );
-
-      /*
-       * Only display the data if the user
-       * is still on this region.
-       *
-       * We use a functional state check here
-       * to avoid relying on a stale closure.
-       */
-
-      setHoveredRegion(
-        (currentRegion) => {
-          if (currentRegion === regionId) {
-            setRegionRisks(risks);
-          }
-
-          return currentRegion;
-        }
-      );
-    } catch (error) {
-      console.error(
-        "Failed to load region risk:",
-        error
-      );
-
-      setRegionRisks([]);
-    } finally {
+  } finally {
+    if (regionHoverIdRef.current === regionId) {
       setLoadingRegionRisk(false);
     }
-  };
+  }
+};
 
   /*
    * ============================================================
