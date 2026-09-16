@@ -91,6 +91,10 @@ export default function MapView({
   const [loadingRegionRisk, setLoadingRegionRisk] =
     useState(false);
 
+  const regionRiskCache = useRef({});
+  const facilityStatusCache = useRef({});
+  const facilityHoverIdRef = useRef(null);
+
   /*
    * ============================================================
    * HOVER TIMERS
@@ -385,44 +389,79 @@ export default function MapView({
    * ============================================================
    */
 
-  const handleFacilityHover = async (
-    facility
-  ) => {
-    setHoveredFacility(facility);
+const handleFacilityHover = async (facility) => {
+  facilityHoverIdRef.current = facility.id;
 
-    setFacilityStatuses([]);
+  setHoveredFacility(facility);
 
-    setLoadingStatuses(true);
+  const cacheKey = facility.id;
 
-    try {
-      const statuses =
-        await Promise.all(
-          medicines.map((medicine) =>
-            getFacilityStatus(
-              facility.id,
-              medicine.id
-            )
-          )
-        );
+  // Cached → instant
+  if (facilityStatusCache.current[cacheKey]) {
+    setFacilityStatuses(
+      facilityStatusCache.current[cacheKey]
+    );
+    setLoadingStatuses(false);
+    return;
+  }
 
-      /*
-       * Only show data for the facility that
-       * initiated this request.
-       */
+  setFacilityStatuses([]);
+  setLoadingStatuses(true);
 
-      setFacilityStatuses(statuses);
-    } catch (error) {
-      console.error(
-        "Failed to load facility statuses:",
-        error
+  try {
+    const results = await Promise.allSettled(
+      medicines.map((medicine) =>
+        getFacilityStatus(
+          facility.id,
+          medicine.id
+        )
+      )
+    );
+
+    const statuses = results
+      .filter(
+        (result) =>
+          result.status === "fulfilled"
+      )
+      .map(
+        (result) =>
+          result.value
       );
 
+    // Cache it
+    facilityStatusCache.current[cacheKey] =
+      statuses;
+
+    // User may have moved to another facility
+    if (
+      facilityHoverIdRef.current ===
+      facility.id
+    ) {
+      setFacilityStatuses(statuses);
+    }
+
+  } catch (error) {
+    console.error(
+      "Failed to load facility statuses:",
+      error
+    );
+
+    if (
+      facilityHoverIdRef.current ===
+      facility.id
+    ) {
       setFacilityStatuses([]);
-    } finally {
+    }
+
+  } finally {
+    if (
+      facilityHoverIdRef.current ===
+      facility.id
+    ) {
       setLoadingStatuses(false);
     }
-  };
-
+  }
+};
   /*
    * ============================================================
    * FACILITY LEAVE
@@ -430,22 +469,29 @@ export default function MapView({
    */
 
   const handleFacilityLeave = () => {
-    setHoveredFacility(null);
+  facilityHoverIdRef.current = null;
 
-    setFacilityStatuses([]);
-  };
-
+  setHoveredFacility(null);
+  setFacilityStatuses([]);
+  setLoadingStatuses(false);
+};
   /*
    * ============================================================
    * REGION HOVER
    * ============================================================
    */
   const regionHoverIdRef = useRef(null);
-  const handleRegionHover = async (regionId) => {
-  regionHoverIdRef.current = regionId;
-
+const handleRegionHover = async (regionId) => {
   setHoveredRegion(regionId);
-  setRegionRisks([]);
+
+  const cacheKey = regionId;
+
+  // Already fetched
+  if (regionRiskCache.current[cacheKey]) {
+    setRegionRisks(regionRiskCache.current[cacheKey]);
+    return;
+  }
+
   setLoadingRegionRisk(true);
 
   try {
@@ -455,23 +501,15 @@ export default function MapView({
       )
     );
 
-    // Ignore response if mouse has already moved to another region
-    if (regionHoverIdRef.current !== regionId) {
-      return;
-    }
-
     const risks = results
-      .filter((result) => result.status === "fulfilled")
-      .map((result) => result.value);
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.value);
+
+    regionRiskCache.current[cacheKey] = risks;
 
     setRegionRisks(risks);
-  } catch (error) {
-    console.error("Failed to load region risk:", error);
-    setRegionRisks([]);
   } finally {
-    if (regionHoverIdRef.current === regionId) {
-      setLoadingRegionRisk(false);
-    }
+    setLoadingRegionRisk(false);
   }
 };
 

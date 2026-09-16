@@ -2,7 +2,6 @@ import MapView from "../components/MapView"
 import AlertsFeed from "../components/AlertsFeed"
 import RecommendationPanel from "../components/RecommendationPanel"
 import {getFacilities} from "../api/client";
-import {getRegionRisk} from "../api/client";
 import { getRecommendations, getMedicines, getAlerts } from "../api/client";
 import { useState, useEffect } from "react";
 
@@ -16,18 +15,25 @@ export default function Dashboard() {
    const [rec_loaded, setRecLoaded] = useState(false);
    const [alert_loaded, setAlertLoaded] = useState(false);
      useEffect(() => {
-       async function loadAlerts() {
-         try{
-           const data = await getAlerts();
-           setAlerts(data);
-           setAlertLoaded(true);
-         }
-         catch(error) {
-           console.error("Failed to load alerts: ", error);
-         }
-       }
-       loadAlerts();
-     }, []);
+  async function loadDashboardData() {
+    try {
+      const [medicinesData, alertsData] =
+        await Promise.all([
+          getMedicines(),
+          getAlerts()
+        ]);
+
+      setMedicines(medicinesData);
+      setAlerts(alertsData);
+
+      setAlertLoaded(true);
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+    }
+  }
+
+  loadDashboardData();
+}, []);
     useEffect(() => {
         async function loadFacilities() {
             const data = await getFacilities();
@@ -36,21 +42,7 @@ export default function Dashboard() {
 
         loadFacilities();
     }, []);
-    useEffect(() => 
-      { 
-        async function loadMedicines() 
-        { try 
-          { 
-            const data = await getMedicines(); 
-            setMedicines(data); 
-          } 
-          catch (error) 
-          { 
-            console.error("Failed to load medicines:", error);
-           } 
-          } 
-          loadMedicines(); 
-        }, []);
+    
          // Load recommendations after facilities and medicines are available
         useEffect(() => { 
           async function loadRecommendations() {
