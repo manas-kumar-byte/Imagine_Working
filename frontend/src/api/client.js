@@ -33,3 +33,7 @@ export async function getRecommendations(facilityId, medicineId) {
   const res = await fetch(`${BASE_URL}/recommendations/${facilityId}?medicine_id=${medicineId}`);
   return res.json();
 }
+export async function getAllRecommendations() {
+  const res = await fetch(`${BASE_URL}/recommendations`);
+  return res.json();
+}

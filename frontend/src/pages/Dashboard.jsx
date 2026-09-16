@@ -2,7 +2,7 @@ import MapView from "../components/MapView"
 import AlertsFeed from "../components/AlertsFeed"
 import RecommendationPanel from "../components/RecommendationPanel"
 import {getFacilities} from "../api/client";
-import { getRecommendations, getMedicines, getAlerts } from "../api/client";
+import { getRecommendations, getMedicines, getAlerts, getAllRecommendations } from "../api/client";
 import { useState, useEffect } from "react";
 
 // Top-level dashboard: MapView + AlertsFeed + RecommendationPanel.
@@ -17,17 +17,43 @@ export default function Dashboard() {
   useEffect(() => {
   async function loadDashboardData() {
     try {
-      const [medicinesData, alertsData, facilitiesData] =
-        await Promise.all([
-          getMedicines(),
-          getAlerts(),
-          getFacilities()
-        ]);
+      // Start alerts
+      getAlerts()
+        .then(data => {
+          setAlerts(data);
+          setAlertLoaded(true);
+        })
+        .catch(error => {
+          console.error("Failed to load alerts:", error);
+        });
 
-      setMedicines(medicinesData);
-      setAlerts(alertsData);
-      setFacilities(facilitiesData);
-      setAlertLoaded(true);
+      // Start recommendations
+      getAllRecommendations()
+        .then(data => {
+          setRecomendations(data);
+          setRecLoaded(true);
+        })
+        .catch(error => {
+          console.error("Failed to load recommendations:", error);
+        });
+
+      // Start facilities
+      getFacilities()
+        .then(data => {
+          setFacilities(data);
+        })
+        .catch(error => {
+          console.error("Failed to load facilities:", error);
+        });
+
+      // Start medicines
+      getMedicines()
+        .then(data => {
+          setMedicines(data);
+        })
+        .catch(error => {
+          console.error("Failed to load medicines:", error);
+        });
 
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
@@ -45,32 +71,7 @@ export default function Dashboard() {
         loadFacilities();
     }, []);
     
-         // Load recommendations after facilities and medicines are available
-        useEffect(() => { 
-          async function loadRecommendations() {
-             if (facilities.length === 0 || medicines.length === 0) 
-              { return; } 
-             try { 
-              const requests = []; 
-              facilities.forEach((facility) => 
-                { 
-                  medicines.forEach((medicine) => 
-                    { 
-                      requests.push( getRecommendations( facility.id, medicine.id ) );
-                     }); 
-                    }); 
-                    const results = await Promise.all(requests); 
-                    const data = results.flat(); 
-                    setRecomendations(data); 
-                    setRecLoaded(true);
-                  } 
-                  catch (error) { 
-                    console.error( "Failed to load recommendations:", error ); 
-                  } 
-                } 
-                loadRecommendations(); 
-                
-              }, [facilities, medicines]);
+        
   const sortedRecommendations = [...recommendations]
   .sort((a, b) => b.urgency_score - a.urgency_score);
   return (
