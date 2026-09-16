@@ -14,19 +14,21 @@ export default function Dashboard() {
    const [alerts, setAlerts] = useState([]);
    const [rec_loaded, setRecLoaded] = useState(false);
    const [alert_loaded, setAlertLoaded] = useState(false);
-     useEffect(() => {
+  useEffect(() => {
   async function loadDashboardData() {
     try {
-      const [medicinesData, alertsData] =
+      const [medicinesData, alertsData, facilitiesData] =
         await Promise.all([
           getMedicines(),
-          getAlerts()
+          getAlerts(),
+          getFacilities()
         ]);
 
       setMedicines(medicinesData);
       setAlerts(alertsData);
-
+      setFacilities(facilitiesData);
       setAlertLoaded(true);
+
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     }
